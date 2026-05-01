@@ -157,8 +157,7 @@ export const FIELD_LABELS = {
   'EC_TAG_KNOWNFILE_COMPLETE_SOURCES': 'Complete Sources',
   'EC_TAG_KNOWNFILE_ON_QUEUE': 'Clients in Queue',
   'EC_TAG_KNOWNFILE_FILENAME': 'File Path',
-  // Canonical fields (normalized from EC_TAG_KNOWNFILE_COMMENT / _RATING)
-  'comment': 'Comment',
+  // Canonical rating field normalized from EC_TAG_KNOWNFILE_RATING
   'rating': 'Rating',
   // Part file (download) fields
   'EC_TAG_PARTFILE_NAME': 'File Name',
