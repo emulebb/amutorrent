@@ -419,6 +419,69 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
   });
 });
 
+test('eMule BB manager maps native shared-directory REST operations', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'GET' && url === '/api/v1/shared-directories') {
+      return {
+        body: {
+          roots: [
+            { path: 'C:\\share\\', recursive: true, accessible: true },
+            { path: 'D:\\missing\\', recursive: true, accessible: false }
+          ],
+          items: [
+            { path: 'C:\\share\\', recursive: true, accessible: true },
+            { path: 'C:\\share\\sub\\', recursive: false, accessible: true, monitorOwned: true }
+          ]
+        }
+      };
+    }
+    if (method === 'PATCH' && url === '/api/v1/shared-directories') {
+      assert.deepEqual(body, {
+        roots: [
+          { path: 'C:\\share', recursive: true },
+          { path: 'D:\\media', recursive: true }
+        ]
+      });
+      return {
+        body: {
+          ok: true,
+          sharedDirectories: {
+            roots: [
+              { path: 'C:\\share\\', recursive: true, accessible: true },
+              { path: 'D:\\media\\', recursive: true, accessible: true }
+            ],
+            items: [
+              { path: 'C:\\share\\', recursive: true, accessible: true },
+              { path: 'D:\\media\\', recursive: true, accessible: true },
+              { path: 'D:\\media\\isos\\', recursive: false, accessible: true, monitorOwned: true }
+            ]
+          }
+        }
+      };
+    }
+    if (method === 'POST' && url === '/api/v1/shared-directories/reload') {
+      assert.deepEqual(body, {});
+      return { body: { ok: true } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const current = await manager.getSharedDirectories();
+    assert.equal(current.configured, true);
+    assert.deepEqual(current.roots, ['C:\\share\\', 'D:\\missing\\']);
+    assert.deepEqual(current.inaccessibleRoots, ['D:\\missing\\']);
+    assert.equal(current.items.length, 2);
+
+    assert.deepEqual(
+      await manager.saveSharedDirectories([' C:\\share ', '', 'D:\\media']),
+      { success: true, roots: 2, totalDirs: 3 }
+    );
+    assert.equal(await manager.refreshSharedFiles(), true);
+  });
+});
+
 test('eMule BB manager includes REST error codes in request failures', async () => {
   await withMockEmulebb(() => ({
     status: 401,

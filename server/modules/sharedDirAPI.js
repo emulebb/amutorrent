@@ -250,6 +250,11 @@ class SharedDirAPI {
         return response.notFound(res, 'aMule instance not found');
       }
 
+      if (typeof manager.getSharedDirectories === 'function') {
+        const model = await manager.getSharedDirectories();
+        return res.json({ ...model, isDocker: config.isDocker });
+      }
+
       if (!datPath) {
         return res.json({ configured: false, path: null, isDocker: config.isDocker });
       }
@@ -306,6 +311,12 @@ class SharedDirAPI {
 
       if (!manager) {
         return response.notFound(res, 'aMule instance not found');
+      }
+      if (typeof manager.saveSharedDirectories === 'function') {
+        if (!Array.isArray(directories) || directories.length === 0) {
+          return response.badRequest(res, 'directories array is required');
+        }
+        return res.json(await manager.saveSharedDirectories(directories));
       }
       if (!datPath) {
         return response.badRequest(res, 'sharedDirDatPath not configured for this instance');

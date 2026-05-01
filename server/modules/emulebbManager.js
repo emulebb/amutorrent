@@ -206,6 +206,15 @@ function normalizeUpload(client, instanceId) {
   };
 }
 
+function normalizeSharedDirectoryRoot(row) {
+  return {
+    path: row?.path || '',
+    recursive: row?.recursive !== false,
+    accessible: row?.accessible !== false,
+    raw: row
+  };
+}
+
 class EmulebbManager extends BaseClientManager {
   constructor() {
     super();
@@ -564,6 +573,46 @@ class EmulebbManager extends BaseClientManager {
 
   async getLog() {
     return unwrapItems(await this._request('GET', '/api/v1/logs?limit=500'));
+  }
+
+  async getSharedDirectories() {
+    const payload = await this._request('GET', '/api/v1/shared-directories');
+    const roots = unwrapItems(payload.roots || []).map(normalizeSharedDirectoryRoot).filter(row => row.path);
+    const items = unwrapItems(payload.items || []).map(normalizeSharedDirectoryRoot).filter(row => row.path);
+    const inaccessibleRoots = roots.filter(row => !row.accessible).map(row => row.path);
+    return {
+      configured: true,
+      path: null,
+      exists: true,
+      canWrite: true,
+      roots: roots.map(row => row.path),
+      inaccessibleRoots,
+      items,
+      raw: payload
+    };
+  }
+
+  async saveSharedDirectories(directories) {
+    const roots = (Array.isArray(directories) ? directories : [])
+      .map(path => String(path || '').trim())
+      .filter(Boolean)
+      .map(path => ({ path, recursive: true }));
+    const payload = await this._request('PATCH', '/api/v1/shared-directories', { roots });
+    const model = payload?.sharedDirectories || {};
+    const totalDirs = Array.isArray(model.items) ? model.items.length : roots.length;
+    const inaccessibleRoots = Array.isArray(model.roots)
+      ? model.roots.filter(row => row?.accessible === false).map(row => row.path).filter(Boolean)
+      : [];
+    const result = { success: true, roots: roots.length, totalDirs };
+    if (inaccessibleRoots.length > 0) {
+      result.warnings = inaccessibleRoots.map(path => `Cannot access ${path}`);
+    }
+    return result;
+  }
+
+  async refreshSharedFiles() {
+    await this._request('POST', '/api/v1/shared-directories/reload', {});
+    return true;
   }
 
   acquireSearchLock() {
