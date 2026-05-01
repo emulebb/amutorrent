@@ -264,6 +264,18 @@ const UL_STATE_LABELS = {
   4: 'Pending', 5: 'Low to Low ID', 6: 'Banned', 7: 'Error', 8: 'None'
 };
 
+const formatPeerStateLabel = (labels, value) => {
+  if (value == null || value === '') return '-';
+  if (Object.prototype.hasOwnProperty.call(labels, value)) return labels[value];
+  return String(value);
+};
+
+const isActivePeerState = (value, activeText) => {
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue) && numericValue === 0) return true;
+  return String(value || '').toLowerCase() === activeText;
+};
+
 const SOURCE_FROM_LABELS = {
   0: '-', 1: 'Server', 2: 'Remote', 3: 'Kad',
   4: 'Exchange', 5: 'Passive', 6: 'Link', 7: 'Seeds', 8: 'Search'
@@ -426,14 +438,14 @@ export const PeersTable = ({ peers, variant, isAmule = false }) => {
           const ipPort = `${peer.address}:${peer.port}`;
           const geoTitle = [peer.geoData?.city, peer.geoData?.country].filter(Boolean).join(', ');
           const stateLabel = isSource
-            ? (DL_STATE_LABELS[peer.downloadState] || `?(${peer.downloadState})`)
+            ? formatPeerStateLabel(DL_STATE_LABELS, peer.downloadState)
             : isUpload
-              ? (UL_STATE_LABELS[peer.uploadState] || `?(${peer.uploadState})`)
+              ? formatPeerStateLabel(UL_STATE_LABELS, peer.uploadState)
               : '';
           const stateColor = isSource
-            ? (peer.downloadState === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400')
+            ? (isActivePeerState(peer.downloadState, 'downloading') ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400')
             : isUpload
-              ? (peer.uploadState === 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400')
+              ? (isActivePeerState(peer.uploadState, 'uploading') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400')
               : '';
 
           return h('tr', {

@@ -60,6 +60,21 @@ function buildCategoryMaps(categories) {
   return { byId, byName };
 }
 
+function parseFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function parseOptionalNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function computePartCompletion(availableParts, partCount) {
+  if (availableParts == null || partCount == null || partCount <= 0) return null;
+  return Math.max(0, Math.min(100, Math.round((availableParts * 100) / partCount)));
+}
+
 function normalizeTransfer(file, instanceId, categoryById = new Map()) {
   const hash = String(file.hash || '').toLowerCase();
   const categoryId = Number.isInteger(file.category) ? file.category : Number.parseInt(file.category, 10);
@@ -94,6 +109,44 @@ function normalizeTransfer(file, instanceId, categoryById = new Map()) {
     eta: file.eta ?? null,
     addedAt: file.addedAt ?? null,
     raw: file
+  };
+}
+
+function normalizeTransferSource(source, transfer) {
+  const address = source.ip || source.address || '';
+  const port = parseFiniteNumber(source.port, 0);
+  const availableParts = parseOptionalNumber(source.availableParts);
+  const partCount = parseOptionalNumber(source.partCount);
+  const userHash = source.userHash ? String(source.userHash).toLowerCase() : '';
+  return {
+    role: 'download',
+    clientType: 'emulebb',
+    id: userHash || `${address}:${port}`,
+    userHash: userHash || null,
+    userName: source.userName || '',
+    fileName: transfer?.name || '',
+    address,
+    port,
+    software: source.clientSoftware || 'Unknown',
+    softwareId: null,
+    downloadRate: parseFiniteNumber(source.downloadRate, 0),
+    uploadRate: 0,
+    downloadTotal: 0,
+    uploadTotal: 0,
+    downloadState: source.downloadState ?? null,
+    sourceFrom: null,
+    remoteQueueRank: parseOptionalNumber(source.queueRank ?? source.remoteQueueRank),
+    completedPercent: computePartCompletion(availableParts, partCount),
+    availableParts,
+    partCount,
+    lowId: !!source.lowId,
+    viewSharedFiles: source.viewSharedFiles !== false,
+    sharedFilesRequestPending: !!source.sharedFilesRequestPending,
+    serverIp: source.serverIp || '',
+    serverPort: parseFiniteNumber(source.serverPort, 0),
+    isEncrypted: false,
+    isIncoming: false,
+    raw: source
   };
 }
 
@@ -267,11 +320,28 @@ class EmulebbManager extends BaseClientManager {
     });
     const snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
     this.lastSnapshot = snapshot;
+    const transferRows = unwrapItems(snapshot.transfers);
+    const downloads = transferRows.map(item => normalizeTransfer(item, this.instanceId, this._categoryById));
+    await Promise.all(downloads.map(async (download, index) => {
+      const sourceCount = parseFiniteNumber(transferRows[index]?.sources ?? download.sourceCount, 0);
+      const transferringCount = parseFiniteNumber(transferRows[index]?.sourcesTransferring ?? download.sourceCountXfer, 0);
+      if (!download.hash || (sourceCount <= 0 && transferringCount <= 0)) return;
+      try {
+        download.peers = await this._getTransferSources(download.hash, download);
+      } catch (err) {
+        this.warn(`Failed to fetch eMule BB sources for ${download.hash}: ${logger.errorDetail(err)}`);
+      }
+    }));
     return {
-      downloads: unwrapItems(snapshot.transfers).map(item => normalizeTransfer(item, this.instanceId, this._categoryById)),
+      downloads,
       sharedFiles: unwrapItems(snapshot.sharedFiles).map(item => normalizeSharedFile(item, this.instanceId)),
       uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId))
     };
+  }
+
+  async _getTransferSources(hash, transfer) {
+    const payload = await this._request('GET', `/api/v1/transfers/${encodeURIComponent(hash)}/sources`);
+    return unwrapItems(payload).map(source => normalizeTransferSource(source, transfer));
   }
 
   async getStats() {
