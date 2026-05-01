@@ -114,7 +114,7 @@ const CLIENT_TYPES = {
       refreshSharedAfterDelete: false,
       categoriesRead: true,
       categoryAssignment: true,
-      categories: false,
+      categories: true,
       logs: true,
       renameFile: true,
       fileRatingComment: true,

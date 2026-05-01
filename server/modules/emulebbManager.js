@@ -19,6 +19,10 @@ function normalizeBasePath(rawPath) {
   return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/^\/+|\/+$/g, '')}`;
 }
 
+function normalizeComparablePath(rawPath) {
+  return String(rawPath || '').trim().replace(/[\\/]+$/g, '').toLowerCase();
+}
+
 function makeEd2kLink(file) {
   if (!file?.hash || !file?.name || !file?.size) return null;
   return `ed2k://|file|${encodeURIComponent(file.name)}|${file.size}|${String(file.hash).toLowerCase()}|/`;
@@ -473,6 +477,85 @@ class EmulebbManager extends BaseClientManager {
   async getCategories() {
     if (!this.client) return null;
     return await this._refreshCategories();
+  }
+
+  async createCategory({ name, path = '', comment = '', color = null, priority = 0 } = {}) {
+    if (!this.client) throw new Error('eMule BB not connected');
+    const payload = {
+      name: String(name || '').trim(),
+      path: path || null,
+      comment: String(comment || ''),
+      priority
+    };
+    if (color != null) payload.color = color;
+    const result = await this._request('POST', '/api/v1/categories', payload);
+    await this._refreshCategories();
+    return { success: true, categoryId: result?.id ?? null };
+  }
+
+  async editCategory({ id, name, path = '', comment = '', color = null, priority = 0 } = {}) {
+    if (!this.client) throw new Error('eMule BB not connected');
+    if (id == null) return { success: false, verified: false, mismatches: ['No eMule BB category ID'] };
+    const payload = {
+      name: String(name || '').trim(),
+      path: path || null,
+      comment: String(comment || ''),
+      priority
+    };
+    if (color != null) payload.color = color;
+    await this._request('PATCH', `/api/v1/categories/${encodeURIComponent(id)}`, payload);
+    const categories = await this._refreshCategories();
+    const saved = categories.find(category => category.id === Number(id));
+    if (!saved) return { success: true, verified: false, mismatches: ['Category not found after update'] };
+    const mismatches = [];
+    if (saved.name !== payload.name) mismatches.push(`name: expected "${payload.name}", got "${saved.name}"`);
+    if (normalizeComparablePath(saved.path) !== normalizeComparablePath(path)) mismatches.push(`path: expected "${path || ''}", got "${saved.path || ''}"`);
+    if ((saved.comment || '') !== payload.comment) mismatches.push(`comment: expected "${payload.comment}", got "${saved.comment || ''}"`);
+    if ((saved.priority ?? 0) !== priority) mismatches.push(`priority: expected ${priority}, got ${saved.priority ?? 0}`);
+    return { success: true, verified: mismatches.length === 0, mismatches };
+  }
+
+  async deleteCategory({ id } = {}) {
+    if (!this.client) throw new Error('eMule BB not connected');
+    if (id == null) return;
+    await this._request('DELETE', `/api/v1/categories/${encodeURIComponent(id)}`, {});
+    await this._refreshCategories();
+  }
+
+  async renameCategory({ id, newName, path = '', comment = '', color = null, priority = 0 } = {}) {
+    return await this.editCategory({ id, name: newName, path, comment, color, priority });
+  }
+
+  async ensureCategoryExists({ name, path = '', color = null, comment = '', priority = 0 } = {}) {
+    if (!this.client) throw new Error('eMule BB not connected');
+    await this._refreshCategories();
+    const trimmedName = String(name || '').trim();
+    const existing = this._categoryByName.get(trimmedName.toLowerCase());
+    if (existing?.id != null) return { amuleId: existing.id };
+    const result = await this.createCategory({ name: trimmedName, path, color, comment, priority });
+    return { amuleId: result.categoryId };
+  }
+
+  async ensureCategoriesBatch(categories) {
+    if (!this.client || !categories?.length) return [];
+    await this._refreshCategories();
+    const results = [];
+    for (const category of categories) {
+      const name = String(category?.name || '').trim();
+      if (!name) continue;
+      const existing = this._categoryByName.get(name.toLowerCase());
+      if (existing?.id != null) {
+        results.push({ name, amuleId: existing.id });
+        continue;
+      }
+      try {
+        const created = await this.createCategory(category);
+        if (created.categoryId != null) results.push({ name, amuleId: created.categoryId });
+      } catch (err) {
+        this.warn(`Failed to create eMule BB category "${name}": ${logger.errorDetail(err)}`);
+      }
+    }
+    return results;
   }
 
   async ensureAmuleCategoryId(categoryName) {

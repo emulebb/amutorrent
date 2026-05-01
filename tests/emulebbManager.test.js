@@ -358,6 +358,45 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
   });
 });
 
+test('eMule BB manager creates, edits, and deletes categories through REST', async () => {
+  const categories = [{ id: 0, name: 'Default' }];
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: categories } };
+    }
+    if (method === 'POST' && url === '/api/v1/categories') {
+      assert.deepEqual(body, { name: 'Linux', path: null, comment: 'distros', priority: 1, color: 65280 });
+      categories.push({ id: 4, name: 'Linux', path: '', comment: 'distros', priority: 1, color: 65280 });
+      return { body: categories[1] };
+    }
+    if (method === 'PATCH' && url === '/api/v1/categories/4') {
+      assert.deepEqual(body, { name: 'ISOs', path: null, comment: 'images', priority: 2 });
+      categories[1] = { id: 4, name: 'ISOs', path: '', comment: 'images', priority: 2, color: 65280 };
+      return { body: categories[1] };
+    }
+    if (method === 'DELETE' && url === '/api/v1/categories/4') {
+      categories.splice(1, 1);
+      return { body: { ok: true } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    assert.deepEqual(
+      await manager.createCategory({ name: 'Linux', comment: 'distros', color: 0x00ff00, priority: 1 }),
+      { success: true, categoryId: 4 }
+    );
+    assert.deepEqual(
+      await manager.editCategory({ id: 4, name: 'ISOs', comment: 'images', priority: 2 }),
+      { success: true, verified: true, mismatches: [] }
+    );
+    assert.deepEqual(await manager.ensureCategoryExists({ name: 'ISOs' }), { amuleId: 4 });
+    await manager.deleteCategory({ id: 4 });
+    assert.equal((await manager.getCategories()).some(category => category.name === 'ISOs'), false);
+  });
+});
+
 test('eMule BB manager applies selected category when adding search results', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
