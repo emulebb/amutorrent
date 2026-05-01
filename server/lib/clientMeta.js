@@ -112,6 +112,8 @@ const CLIENT_TYPES = {
       cancelDeletesFiles: true,
       apiDeletesFiles: true,
       refreshSharedAfterDelete: false,
+      categoriesRead: true,
+      categoryAssignment: true,
       categories: false,
       logs: true,
       renameFile: false,

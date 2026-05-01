@@ -29,8 +29,41 @@ function unwrapItems(payload) {
   return Array.isArray(payload) ? payload : [];
 }
 
-function normalizeTransfer(file, instanceId) {
+function normalizeCategory(category) {
+  const id = Number.isInteger(category?.id) ? category.id : Number.parseInt(category?.id, 10);
+  const name = String(category?.name || category?.title || (id === 0 ? 'Default' : '')).trim() || `Category ${id}`;
+  return {
+    id,
+    name,
+    title: name,
+    path: category?.path || '',
+    comment: category?.comment || '',
+    color: category?.color ?? null,
+    priority: category?.priority ?? 0,
+    raw: category
+  };
+}
+
+function buildCategoryMaps(categories) {
+  const byId = new Map();
+  const byName = new Map();
+  for (const category of categories) {
+    if (!Number.isInteger(category.id) || category.id < 0) continue;
+    byId.set(category.id, category);
+    byName.set(category.name.toLowerCase(), category);
+  }
+  if (!byId.has(0)) {
+    const fallback = normalizeCategory({ id: 0, name: 'Default' });
+    byId.set(0, fallback);
+    byName.set('default', fallback);
+  }
+  return { byId, byName };
+}
+
+function normalizeTransfer(file, instanceId, categoryById = new Map()) {
   const hash = String(file.hash || '').toLowerCase();
+  const categoryId = Number.isInteger(file.category) ? file.category : Number.parseInt(file.category, 10);
+  const categoryName = file.categoryName || categoryById.get(categoryId)?.name || 'Default';
   return {
     clientType: 'emulebb',
     instanceId,
@@ -39,8 +72,9 @@ function normalizeTransfer(file, instanceId) {
     rawName: file.name || 'Unknown',
     size: file.size || 0,
     downloaded: file.sizeDone || 0,
-    category: file.category ?? 0,
-    categoryName: 'Default',
+    category: categoryName,
+    categoryId: Number.isInteger(categoryId) ? categoryId : 0,
+    categoryName,
     ed2kLink: makeEd2kLink(file),
     progress: file.progress <= 1 ? (file.progress || 0) * 100 : (file.progress || 0),
     speed: file.downloadSpeed || 0,
@@ -122,6 +156,10 @@ class EmulebbManager extends BaseClientManager {
     this.lastSearchId = null;
     this.lastSearchResults = [];
     this.searchInProgress = false;
+    this._categories = [normalizeCategory({ id: 0, name: 'Default' })];
+    const maps = buildCategoryMaps(this._categories);
+    this._categoryById = maps.byId;
+    this._categoryByName = maps.byName;
   }
 
   _baseUrl() {
@@ -167,13 +205,17 @@ class EmulebbManager extends BaseClientManager {
             return reject(new Error(`Invalid JSON from eMule BB: ${err.message}`));
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            const message = payload?.message || `HTTP ${res.statusCode}`;
-            return reject(new Error(message));
+            const code = payload?.error || `HTTP ${res.statusCode}`;
+            const message = payload?.message || text || `HTTP ${res.statusCode}`;
+            return reject(new Error(`eMule BB ${code}: ${message}`));
+          }
+          if (payload == null) {
+            return reject(new Error('eMule BB returned an empty JSON response'));
           }
           resolve(payload);
         });
       });
-      req.on('error', reject);
+      req.on('error', err => reject(new Error(`eMule BB request failed: ${err.message}`)));
       req.on('timeout', () => req.destroy(new Error('eMule BB request timed out')));
       if (data) req.write(data);
       req.end();
@@ -187,6 +229,9 @@ class EmulebbManager extends BaseClientManager {
     try {
       const version = await this._request('GET', '/api/v1/app');
       this.client = { version };
+      await this._refreshCategories().catch(err => {
+        this.warn(`Failed to fetch eMule BB categories: ${logger.errorDetail(err)}`);
+      });
       this._clearConnectionError();
       this.clearReconnect();
       this.log(`Connected to eMule BB ${version?.version || ''}`.trim());
@@ -213,10 +258,13 @@ class EmulebbManager extends BaseClientManager {
 
   async fetchData() {
     if (!this.client) return { downloads: [], sharedFiles: [], uploads: [] };
+    await this._refreshCategories().catch(err => {
+      this.warn(`Failed to refresh eMule BB categories: ${logger.errorDetail(err)}`);
+    });
     const snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
     this.lastSnapshot = snapshot;
     return {
-      downloads: unwrapItems(snapshot.transfers).map(item => normalizeTransfer(item, this.instanceId)),
+      downloads: unwrapItems(snapshot.transfers).map(item => normalizeTransfer(item, this.instanceId, this._categoryById)),
       sharedFiles: unwrapItems(snapshot.sharedFiles).map(item => normalizeSharedFile(item, this.instanceId)),
       uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId))
     };
@@ -267,11 +315,16 @@ class EmulebbManager extends BaseClientManager {
   async resume(hash) { return await this._transferAction(hash, 'resume'); }
   async stop(hash) { return await this._transferAction(hash, 'stop'); }
 
-  async addEd2kLink(link, _categoryId = 0, username = null) {
+  async addEd2kLink(link, categoryId = 0, username = null) {
     const result = await this._request('POST', '/api/v1/transfers', { link });
     if (result?.hash) {
+      const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
+      if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
+        await this.setCategoryOrLabel(result.hash, { categoryId: numericCategoryId });
+      }
       const parsed = parseEd2kLink(link);
-      this.trackDownload(result.hash, parsed.filename || result.name || 'Unknown', parsed.size || null, username, 'Default');
+      const categoryName = this._categoryById.get(numericCategoryId)?.name || 'Default';
+      this.trackDownload(result.hash, parsed.filename || result.name || 'Unknown', parsed.size || null, username, categoryName);
       return true;
     }
     return false;
@@ -282,28 +335,69 @@ class EmulebbManager extends BaseClientManager {
       delete_files: deleteFiles !== false
     });
     const first = payload?.results?.[0];
-    if (first?.ok) {
+    if (payload?.ok === true || first?.ok) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
     }
     return { success: false, error: first?.error || 'eMule BB rejected the delete request' };
   }
 
-  async setCategoryOrLabel(hash, { categoryId, categoryName } = {}) {
-    const category = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryName, 10);
-    if (!Number.isInteger(category) || category < 0) {
-      return { success: false, error: 'eMule BB expects a numeric category id' };
+  async _refreshCategories() {
+    const categories = unwrapItems(await this._request('GET', '/api/v1/categories')).map(normalizeCategory);
+    const maps = buildCategoryMaps(categories);
+    this._categories = categories.length > 0 ? categories : [normalizeCategory({ id: 0, name: 'Default' })];
+    this._categoryById = maps.byId;
+    this._categoryByName = maps.byName;
+    return this._categories;
+  }
+
+  async getCategories() {
+    if (!this.client) return null;
+    return await this._refreshCategories();
+  }
+
+  async ensureAmuleCategoryId(categoryName) {
+    if (!this.client) return null;
+    const name = String(categoryName || '').trim();
+    if (!name) return 0;
+    if (!this._categoryByName.has(name.toLowerCase())) {
+      await this._refreshCategories();
     }
-    await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { category });
+    return this._categoryByName.get(name.toLowerCase())?.id ?? null;
+  }
+
+  async setCategoryOrLabel(hash, { categoryId, categoryName } = {}) {
+    const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
+    if (Number.isInteger(numericCategoryId) && numericCategoryId >= 0) {
+      await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { category: numericCategoryId });
+      return { success: true };
+    }
+
+    const name = String(categoryName || '').trim();
+    if (!name) {
+      return { success: false, error: 'eMule BB category assignment requires categoryId or categoryName' };
+    }
+
+    if (!this._categoryByName.has(name.toLowerCase())) {
+      await this._refreshCategories();
+    }
+    if (!this._categoryByName.has(name.toLowerCase())) {
+      return { success: false, error: `Unknown eMule BB category: ${name}` };
+    }
+
+    await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { categoryName: name });
     return { success: true };
   }
 
   async search(query, type, extension) {
-    const method = type || 'automatic';
+    const normalizedType = String(type || '').toLowerCase();
+    const allowedMethods = new Set(['automatic', 'server', 'global', 'kad']);
+    const method = allowedMethods.has(normalizedType) ? normalizedType : 'automatic';
+    const fileType = allowedMethods.has(normalizedType) || !normalizedType ? 'any' : normalizedType;
     const start = await this._request('POST', '/api/v1/searches', {
       query,
       method,
-      type: 'any',
+      type: fileType,
       ext: extension || ''
     });
     this.lastSearchId = start.search_id;
