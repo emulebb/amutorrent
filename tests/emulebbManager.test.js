@@ -79,6 +79,148 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   });
 });
 
+test('eMule BB manager hydrates transfer sources from REST', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [{
+            hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
+            name: 'movie.mkv',
+            size: 97280000,
+            sizeDone: 24320000,
+            progress: 0.25,
+            sources: 1,
+            sourcesTransferring: 1
+          }],
+          sharedFiles: [],
+          uploads: []
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/sources') {
+      return {
+        body: [{
+          userName: 'remote-user',
+          userHash: 'FEDCBA9876543210FEDCBA9876543210',
+          clientSoftware: 'eMule 0.70a',
+          downloadState: 'Downloading',
+          downloadRate: 1234,
+          availableParts: 3,
+          partCount: 10,
+          ip: '1.2.3.4',
+          port: 4662,
+          serverIp: '5.6.7.8',
+          serverPort: 4661,
+          lowId: false,
+          queueRank: 42,
+          viewSharedFiles: true,
+          sharedFilesRequestPending: false
+        }]
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const data = await manager.fetchData();
+    assert.equal(data.downloads.length, 1);
+    assert.equal(data.downloads[0].peers.length, 1);
+
+    const [source] = data.downloads[0].peers;
+    assert.equal(source.role, 'download');
+    assert.equal(source.clientType, 'emulebb');
+    assert.equal(source.userHash, 'fedcba9876543210fedcba9876543210');
+    assert.equal(source.userName, 'remote-user');
+    assert.equal(source.address, '1.2.3.4');
+    assert.equal(source.port, 4662);
+    assert.equal(source.software, 'eMule 0.70a');
+    assert.equal(source.downloadState, 'Downloading');
+    assert.equal(source.downloadRate, 1234);
+    assert.equal(source.remoteQueueRank, 42);
+    assert.equal(source.completedPercent, 30);
+    assert.equal(source.viewSharedFiles, true);
+    assert.equal(source.serverIp, '5.6.7.8');
+    assert.equal(source.serverPort, 4661);
+    assert.ok(requests.some(request => request.url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/sources'));
+  });
+});
+
+test('eMule BB manager keeps transfers when source hydration fails', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [{
+            hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
+            name: 'movie.mkv',
+            size: 100,
+            sizeDone: 25,
+            progress: 0.25,
+            sources: 1
+          }],
+          sharedFiles: [],
+          uploads: []
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/sources') {
+      return { status: 503, body: { error: 'BUSY', message: 'source list temporarily unavailable' } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const data = await manager.fetchData();
+    assert.equal(data.downloads.length, 1);
+    assert.deepEqual(data.downloads[0].peers, []);
+  });
+});
+
+test('eMule BB hydrated sources are preserved through unified item assembly', () => {
+  const [item] = assembleUnifiedItems(
+    [{
+      clientType: 'emulebb',
+      instanceId: 'emulebb-test',
+      hash: 'abcdefabcdefabcdefabcdefabcdefab',
+      name: 'active.bin',
+      size: 100,
+      downloaded: 25,
+      progress: 25,
+      peers: [{
+        role: 'download',
+        clientType: 'emulebb',
+        id: 'fedcba9876543210fedcba9876543210',
+        userName: 'remote-user',
+        address: '1.2.3.4',
+        port: 4662,
+        software: 'eMule 0.70a',
+        downloadRate: 1234,
+        downloadState: 'Downloading',
+        remoteQueueRank: 42,
+        completedPercent: 30
+      }]
+    }],
+    [],
+    null
+  );
+
+  assert.equal(item.peers.length, 1);
+  assert.equal(item.peers[0].role, 'download');
+  assert.equal(item.peers[0].address, '1.2.3.4');
+  assert.equal(item.peers[0].downloadState, 'Downloading');
+  assert.equal(item.peers[0].remoteQueueRank, 42);
+  assert.equal(item.peers[0].completedPercent, 30);
+});
+
 test('eMule BB manager normalizes shared metadata and updates rating/comment', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
