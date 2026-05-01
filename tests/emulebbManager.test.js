@@ -77,6 +77,50 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   });
 });
 
+test('eMule BB manager normalizes shared metadata and updates rating/comment', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [],
+          sharedFiles: [{
+            hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
+            name: 'shared.avi',
+            size: 100,
+            comment: 'verified',
+            rating: 4,
+            hasComment: true,
+            userRating: 4
+          }],
+          uploads: []
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'PATCH' && url === '/api/v1/shared-files/abcdefabcdefabcdefabcdefabcdefab') {
+      assert.deepEqual(body, { comment: 'better', rating: 5 });
+      return { body: { ok: true } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const data = await manager.fetchData();
+    assert.equal(data.sharedFiles.length, 1);
+    assert.equal(data.sharedFiles[0].comment, 'verified');
+    assert.equal(data.sharedFiles[0].rating, 4);
+    assert.equal(data.sharedFiles[0].hasComment, true);
+
+    assert.deepEqual(
+      await manager.setFileRatingComment('abcdefabcdefabcdefabcdefabcdefab', 'better', 5),
+      { success: true }
+    );
+  });
+});
+
 test('eMule BB manager assigns categories by existing name and handles delete shapes', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
@@ -101,6 +145,35 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     assert.deepEqual(await manager.setCategoryOrLabel('hash1', { categoryName: 'Linux' }), { success: true });
     assert.deepEqual(await manager.deleteItem('hash1'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash2'), { success: true, pathsToDelete: [] });
+  });
+});
+
+test('eMule BB manager applies selected category when adding search results', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }, { id: 3, name: 'Linux' }] } };
+    }
+    if (method === 'POST' && url === '/api/v1/transfers') {
+      assert.equal(body.link, 'ed2k://|file|result.bin|42|0123456789abcdef0123456789abcdef|/');
+      return { body: { hash: '0123456789abcdef0123456789abcdef' } };
+    }
+    if (method === 'PATCH' && url === '/api/v1/transfers/0123456789abcdef0123456789abcdef') {
+      assert.deepEqual(body, { category: 3 });
+      return { body: { ok: true } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+    await manager.getCategories();
+    manager.lastSearchResults = [{
+      fileHash: '0123456789abcdef0123456789abcdef',
+      fileName: 'result.bin',
+      fileSize: 42,
+      ed2kLink: 'ed2k://|file|result.bin|42|0123456789abcdef0123456789abcdef|/'
+    }];
+
+    assert.equal(await manager.addSearchResult('0123456789abcdef0123456789abcdef', 3), true);
   });
 });
 

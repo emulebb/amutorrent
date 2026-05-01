@@ -117,7 +117,7 @@ const CLIENT_TYPES = {
       categories: false,
       logs: true,
       renameFile: false,
-      fileRatingComment: false,
+      fileRatingComment: true,
       customSavePath: false
     }
   },

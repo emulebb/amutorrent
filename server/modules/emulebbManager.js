@@ -109,8 +109,10 @@ function normalizeSharedFile(file, instanceId) {
     progress: 1,
     priority: file.uploadPriority || null,
     ed2kLink: makeEd2kLink(file),
-    comment: null,
-    rating: null,
+    comment: file.comment ?? '',
+    rating: file.rating ?? file.userRating ?? 0,
+    hasComment: !!file.hasComment,
+    userRating: file.userRating ?? file.rating ?? 0,
     path: file.path || null,
     directory: file.directory || null,
     requests: file.requests || 0,
@@ -342,6 +344,25 @@ class EmulebbManager extends BaseClientManager {
     return { success: false, error: first?.error || 'eMule BB rejected the delete request' };
   }
 
+  /**
+   * Set rating and comment on a completed shared file.
+   * @param {string} hash - File hash
+   * @param {string} comment - Comment text, empty string clears it
+   * @param {number} rating - Rating from 0 to 5
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async setFileRatingComment(hash, comment, rating) {
+    try {
+      await this._request('PATCH', `/api/v1/shared-files/${encodeURIComponent(hash)}`, {
+        comment: String(comment ?? ''),
+        rating
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
   async _refreshCategories() {
     const categories = unwrapItems(await this._request('GET', '/api/v1/categories')).map(normalizeCategory);
     const maps = buildCategoryMaps(categories);
@@ -420,10 +441,10 @@ class EmulebbManager extends BaseClientManager {
     return { results, resultsLength: results.length, status: payload.status };
   }
 
-  async addSearchResult(fileHash, _categoryId = 0, username = null, fileInfoCallback = null) {
+  async addSearchResult(fileHash, categoryId = 0, username = null, fileInfoCallback = null) {
     const file = this.lastSearchResults.find(item => item.fileHash?.toLowerCase() === fileHash.toLowerCase());
     if (!file?.ed2kLink) return false;
-    const success = await this.addEd2kLink(file.ed2kLink, 0, username);
+    const success = await this.addEd2kLink(file.ed2kLink, categoryId, username);
     if (success && fileInfoCallback) await fileInfoCallback(fileHash).catch(() => null);
     return success;
   }
