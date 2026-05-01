@@ -86,6 +86,25 @@ class WebSocketHandlers extends BaseModule {
   }
 
   /**
+   * Resolve an ED2K-capable manager by instanceId or first connected ED2K client.
+   * @param {string|null} instanceId - Preferred instance ID
+   * @returns {Object|null} ED2K manager instance
+   */
+  _getEd2kManager(instanceId) {
+    if (instanceId) {
+      const mgr = registry.get(instanceId);
+      if (mgr && clientMeta.getNetworkType(mgr.clientType) === 'ed2k') return mgr;
+    }
+    const ed2kTypes = clientMeta.getByNetworkType('ed2k');
+    for (const type of ed2kTypes) {
+      const managers = registry.getByType(type);
+      const fallback = managers.find(m => m.isConnected?.()) || managers.find(m => m.isEnabled?.()) || managers[0];
+      if (fallback) return fallback;
+    }
+    return null;
+  }
+
+  /**
    * Parse cookies from cookie header
    * @param {string} cookieHeader - Cookie header string
    * @returns {Object} Parsed cookies as key-value pairs
@@ -349,9 +368,9 @@ class WebSocketHandlers extends BaseModule {
 
   // Handler implementations
   async handleSearch(data, context) {
-    const manager = this._getManager(data.instanceId, 'amule');
+    const manager = this._getEd2kManager(data.instanceId);
     if (!manager) {
-      context.send({ type: 'error', message: 'No aMule instance available' });
+      context.send({ type: 'error', message: 'No ED2K instance available' });
       return;
     }
     if (!manager.acquireSearchLock()) {
@@ -385,7 +404,7 @@ class WebSocketHandlers extends BaseModule {
 
       // Get aMule cached results from the specified or last-searched instance
       const instanceId = data?.instanceId || this.lastAmuleSearchInstanceId;
-      const manager = this._getManager(instanceId, 'amule');
+      const manager = this._getEd2kManager(instanceId);
       let amuleResults = [];
       try {
         if (manager) {
@@ -439,9 +458,9 @@ class WebSocketHandlers extends BaseModule {
 
   async handleGetServersList(data, context) {
     try {
-      const manager = this._getManager(data?.instanceId, 'amule');
+      const manager = this._getEd2kManager(data?.instanceId);
       if (!manager) {
-        context.send({ type: 'error', message: 'No aMule instance available' });
+        context.send({ type: 'error', message: 'No ED2K instance available' });
         return;
       }
       const servers = await manager.getServerList();
@@ -460,9 +479,9 @@ class WebSocketHandlers extends BaseModule {
         throw new Error('Missing required parameters: ip, port, or serverAction');
       }
 
-      const manager = this._getManager(instanceId, 'amule');
+      const manager = this._getEd2kManager(instanceId);
       if (!manager) {
-        context.send({ type: 'error', message: 'No aMule instance available' });
+        context.send({ type: 'error', message: 'No ED2K instance available' });
         return;
       }
 
@@ -492,9 +511,9 @@ class WebSocketHandlers extends BaseModule {
 
   async handleGetStatsTree(data, context) {
     try {
-      const manager = this._getManager(data?.instanceId, 'amule');
+      const manager = this._getEd2kManager(data?.instanceId);
       if (!manager) {
-        context.send({ type: 'error', message: 'aMule client not connected. Please complete setup first.' });
+        context.send({ type: 'error', message: 'ED2K client not connected. Please complete setup first.' });
         return;
       }
       const statsTree = await manager.getStatsTree();
@@ -508,9 +527,9 @@ class WebSocketHandlers extends BaseModule {
 
   async handleGetServerInfo(data, context) {
     try {
-      const manager = this._getManager(data?.instanceId, 'amule');
+      const manager = this._getEd2kManager(data?.instanceId);
       if (!manager) {
-        context.send({ type: 'error', message: 'No aMule instance available' });
+        context.send({ type: 'error', message: 'No ED2K instance available' });
         return;
       }
       const serverInfo = await manager.getServerInfo();
@@ -524,9 +543,9 @@ class WebSocketHandlers extends BaseModule {
 
   async handleGetLog(data, context) {
     try {
-      const manager = this._getManager(data?.instanceId, 'amule');
+      const manager = this._getEd2kManager(data?.instanceId);
       if (!manager) {
-        context.send({ type: 'error', message: 'No aMule instance available' });
+        context.send({ type: 'error', message: 'No ED2K instance available' });
         return;
       }
       const log = await manager.getLog();
@@ -580,16 +599,18 @@ class WebSocketHandlers extends BaseModule {
         throw new Error('No file hashes provided for batch download');
       }
 
-      const manager = this._getManager(data.instanceId, 'amule');
-      if (!manager) { throw new Error('No aMule instance available'); }
+      const manager = this._getEd2kManager(data.instanceId);
+      if (!manager) { throw new Error('No ED2K instance available'); }
 
       // Support both legacy categoryId and new categoryName
       let categoryId = 0;
-      if (categoryName) {
+      if (categoryName && typeof manager.ensureAmuleCategoryId === 'function') {
         // Ensure category exists in aMule (creates if needed)
         // This handles rTorrent-only categories that don't have an amuleId yet
         categoryId = await manager.ensureAmuleCategoryId(categoryName) ?? 0;
         context.log(`Category lookup: name="${categoryName}" → amuleId=${categoryId}`);
+      } else if (categoryName) {
+        context.log(`Category "${categoryName}" ignored for ${manager.displayName}; numeric eMule BB categories are not managed by aMuTorrent`);
       } else if (rawCategoryId !== undefined && rawCategoryId !== null) {
         categoryId = rawCategoryId;
         context.log(`Using legacy categoryId: ${categoryId}`);
@@ -661,15 +682,17 @@ class WebSocketHandlers extends BaseModule {
         return;
       }
 
-      const manager = this._getManager(data.instanceId, 'amule');
-      if (!manager) { throw new Error('No aMule instance available for ED2K links'); }
+      const manager = this._getEd2kManager(data.instanceId);
+      if (!manager) { throw new Error('No ED2K instance available for ED2K links'); }
 
       // Resolve category: prefer categoryName (new), fall back to categoryId (legacy)
       let categoryId = data.categoryId || 0;
-      if (data.categoryName) {
+      if (data.categoryName && typeof manager.ensureAmuleCategoryId === 'function') {
         const resolved = await manager.ensureAmuleCategoryId(data.categoryName);
         categoryId = resolved ?? 0;
         context.log(`Category lookup: name="${data.categoryName}" → amuleId=${categoryId}`);
+      } else if (data.categoryName) {
+        context.log(`Category "${data.categoryName}" ignored for ${manager.displayName}; numeric eMule BB categories are not managed by aMuTorrent`);
       }
 
       const results = [];

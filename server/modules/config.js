@@ -72,6 +72,7 @@ const SENSITIVE_ENV_VARS = Object.entries(ENV_VAR_MAP)
  */
 const CLIENT_ENV_PREFIX = {
   amule: 'AMULE',
+  emulebb: 'EMULEBB',
   rtorrent: 'RTORRENT',
   qbittorrent: 'QBITTORRENT',
   deluge: 'DELUGE',
@@ -93,6 +94,16 @@ const CLIENT_ENV_FIELDS = {
     PASSWORD: { field: 'password', type: 'string', sensitive: true },
     SHARED_FILES_RELOAD_INTERVAL_HOURS: { field: 'sharedFilesReloadIntervalHours', type: 'int' },
     SHARED_DIR_DAT: { field: 'sharedDirDatPath', type: 'string' },
+    ID: { field: 'id', type: 'string' },
+    NAME: { field: 'name', type: 'string' }
+  },
+  emulebb: {
+    ENABLED: { field: 'enabled', type: 'boolean' },
+    HOST: { field: 'host', type: 'string' },
+    PORT: { field: 'port', type: 'int' },
+    API_KEY: { field: 'apiKey', type: 'string', sensitive: true },
+    USE_SSL: { field: 'useSsl', type: 'boolean' },
+    PATH: { field: 'path', type: 'string' },
     ID: { field: 'id', type: 'string' },
     NAME: { field: 'name', type: 'string' }
   },
@@ -709,7 +720,7 @@ class Config extends BaseModule {
     // At least one download client must be enabled
     const hasEnabledClient = Array.isArray(config.clients) && config.clients.some(c => c.enabled !== false);
     if (!hasEnabledClient) {
-      errors.push('At least one download client (aMule, rTorrent, or qBittorrent) must be enabled');
+      errors.push('At least one download client must be enabled');
     }
 
     // Validate clients array entries
@@ -729,6 +740,11 @@ class Config extends BaseModule {
           // Skip if password comes from env (stripped by removeEnvVars, refilled at runtime)
           if (entry.source !== 'env' || !this.hasEnvValue(`${CLIENT_ENV_PREFIX.amule}_PASSWORD`)) {
             errors.push(`${label}: password is required`);
+          }
+        }
+        if (entry.type === 'emulebb' && !entry.apiKey) {
+          if (entry.source !== 'env' || !this.hasEnvValue(`${CLIENT_ENV_PREFIX.emulebb}_API_KEY`)) {
+            errors.push(`${label}: API key is required`);
           }
         }
       }

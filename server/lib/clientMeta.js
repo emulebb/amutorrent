@@ -64,6 +64,61 @@ const CLIENT_TYPES = {
       customSavePath: false        // ed2k uses category paths only
     }
   },
+  emulebb: {
+    networkType: 'ed2k',
+    displayName: 'eMule BB',
+    metricsPrefix: 'eb_',
+    hashLength: 32,
+    statusField: 'statusText',
+    statusMap: {
+      'downloading': 'active',
+      'stalled': 'active',
+      'completing': 'active',
+      'paused': 'paused',
+      'checking': 'checking',
+      'complete': 'completed',
+      'error': 'error',
+      'missing_files': 'error'
+    },
+    connectionDefaults: {
+      host: '', port: 4711, apiKey: '', useSsl: false, path: ''
+    },
+    defaults: {
+      downloadPriority: null,
+      uploadPriority: null,
+      uploadSession: null,
+      requestsAccepted: null,
+      requestsAcceptedTotal: null,
+      partStatus: null,
+      gapStatus: null,
+      reqStatus: null,
+      lastSeenComplete: 0,
+      ed2kLink: null,
+      addedAt: null
+    },
+    capabilities: {
+      nativeMove: false,
+      categoryChangeAutoMoves: false,
+      multiFile: false,
+      sharedFiles: true,
+      sharedMeansComplete: true,
+      removeSharedMustDeleteFiles: false,
+      moveSharedForCategoryChange: false,
+      refreshSharedAfterMove: false,
+      moveActiveDownloads: false,
+      pauseBeforeMove: false,
+      trackers: false,
+      search: true,
+      cancelDeletesFiles: true,
+      apiDeletesFiles: true,
+      refreshSharedAfterDelete: false,
+      categories: false,
+      logs: true,
+      renameFile: false,
+      fileRatingComment: false,
+      customSavePath: false
+    }
+  },
   rtorrent: {
     networkType: 'bittorrent',
     displayName: 'rTorrent',

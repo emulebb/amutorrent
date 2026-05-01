@@ -4,6 +4,8 @@
  */
 
 const fs = require('fs').promises;
+const http = require('http');
+const https = require('https');
 const path = require('path');
 const QueuedAmuleClient = require('../modules/queuedAmuleClient');
 const RtorrentHandler = require('./rtorrent/RtorrentHandler');
@@ -160,6 +162,66 @@ async function testAmuleConnection(host, port, password) {
 
     return result;
   }
+}
+
+function normalizeBasePath(rawPath) {
+  const value = String(rawPath || '').trim();
+  if (!value || value === '/') return '';
+  return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/^\/+|\/+$/g, '')}`;
+}
+
+async function requestEmulebbVersion(host, port, apiKey, useSsl = false, basePath = '') {
+  const protocol = useSsl ? 'https' : 'http';
+  const url = new URL(`${protocol}://${host}:${port}${normalizeBasePath(basePath)}/api/v1/app`);
+  const transport = useSsl ? https : http;
+  return await new Promise((resolve, reject) => {
+    const req = transport.request({
+      method: 'GET',
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      headers: {
+        'Accept': 'application/json',
+        'X-API-Key': apiKey || ''
+      },
+      timeout: 10000
+    }, (res) => {
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let payload = null;
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch (err) {
+          return reject(new Error(`Invalid JSON from eMule BB: ${err.message}`));
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(payload?.message || `HTTP ${res.statusCode}`));
+        }
+        resolve(payload);
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('Connection timeout - server not reachable')));
+    req.end();
+  });
+}
+
+async function testEmulebbConnection(host, port, apiKey, useSsl = false, basePath = '') {
+  const result = { success: false, error: null, message: null };
+  try {
+    const version = await requestEmulebbVersion(host, port, apiKey, useSsl, basePath);
+    if (version?.appName === 'eMule') {
+      result.success = true;
+      result.message = `Connected to eMule BB ${version.version || ''}`.trim();
+    } else {
+      result.error = 'Unexpected response from eMule BB';
+    }
+  } catch (err) {
+    result.error = classifyNetworkError(err);
+  }
+  return result;
 }
 
 /**
@@ -675,6 +737,7 @@ module.exports = {
   testDirectoryAccess,
   testGeoIPDatabase,
   testAmuleConnection,
+  testEmulebbConnection,
   testRtorrentConnection,
   testQbittorrentConnection,
   testDelugeConnection,

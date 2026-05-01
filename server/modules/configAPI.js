@@ -283,7 +283,7 @@ class ConfigAPI extends BaseModule {
    */
   async testConfig(req, res) {
     try {
-      const { amule, rtorrent, directories, sonarr, radarr, prowlarr } = req.body;
+      const { amule, emulebb, rtorrent, directories, sonarr, radarr, prowlarr } = req.body;
       const results = {};
       const currentConfig = config.getConfig();
 
@@ -293,6 +293,18 @@ class ConfigAPI extends BaseModule {
         this.log(`🧪 Testing aMule connection to ${amule.host}:${amule.port}...`);
         results.amule = await configTester.testAmuleConnection(amule.host, amule.port, password);
         this.logTestResult('aMule connection', results.amule);
+      }
+      if (emulebb && emulebb.enabled !== false) {
+        const apiKey = emulebb.apiKey || (emulebb.instanceId ? config.getClientConfig(emulebb.instanceId)?.apiKey : null);
+        this.log(`🧪 Testing eMule BB connection to ${emulebb.host}:${emulebb.port}...`);
+        results.emulebb = await configTester.testEmulebbConnection(
+          emulebb.host,
+          emulebb.port,
+          apiKey,
+          emulebb.useSsl,
+          emulebb.path,
+        );
+        this.logTestResult('eMule BB connection', results.emulebb);
       }
 
       // Test rtorrent connection if provided and enabled

@@ -29,6 +29,13 @@ const CLIENT_FIELDS = {
     { field: 'password', label: 'Password', description: 'aMule EC password (set in aMule preferences)', placeholder: 'Enter aMule EC password', required: true, sensitive: true },
     { field: 'sharedFilesReloadIntervalHours', label: 'Shared Files Auto-Reload Interval (hours)', description: 'Hours between automatic shared files reload (0 = disabled, default: 3). This makes aMule rescan shared directories periodically.', placeholder: '3', type: 'number', parseValue: v => parseInt(v) || 0, defaultValue: 3 }
   ],
+  emulebb: [
+    { field: 'host', label: 'Host', description: 'eMule BB WebServer host address', placeholder: '127.0.0.1', defaultValue: '127.0.0.1', required: true },
+    { field: 'port', label: 'Port', description: 'eMule BB WebServer port (default: 4711)', placeholder: '4711', defaultValue: 4711, type: 'number', required: true, parseValue: v => parseInt(v, 10) || 4711 },
+    { field: 'apiKey', label: 'API Key', description: 'eMule BB REST API key from WebServer preferences', placeholder: 'Enter eMule BB API key', required: true, sensitive: true },
+    { field: 'path', label: 'URL Path (Optional)', description: 'Base path when behind a reverse proxy', placeholder: 'Leave empty if not using a reverse proxy' },
+    { field: 'useSsl', label: 'Use SSL (HTTPS)', description: 'Connect to eMule BB using HTTPS', toggle: true }
+  ],
   rtorrent: [
     { field: 'mode', label: 'Connection Mode', description: 'HTTP: Connect via XML-RPC HTTP proxy (nginx/ruTorrent). SCGI: Connect directly to rTorrent via SCGI TCP. SCGI Socket: Connect via Unix domain socket.', select: true, options: [{ value: 'http', label: 'HTTP (XML-RPC proxy)' }, { value: 'scgi', label: 'SCGI (direct TCP)' }, { value: 'scgi-socket', label: 'SCGI (Unix socket)' }], defaultValue: 'http' },
     { field: 'host', label: 'Host', description: 'rTorrent host address', placeholder: '127.0.0.1', defaultValue: '127.0.0.1', required: true, hideWhen: form => (form.mode || 'http') === 'scgi-socket' },
@@ -66,6 +73,7 @@ const CLIENT_FIELDS = {
 
 const TYPE_LABELS = {
   amule: 'aMule',
+  emulebb: 'eMule BB',
   rtorrent: 'rTorrent',
   qbittorrent: 'qBittorrent',
   deluge: 'Deluge',
@@ -88,6 +96,7 @@ const INSTANCE_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#e67e22', 
 
 const TYPE_DESCRIPTIONS = {
   amule: 'ED2K / Kademlia downloads',
+  emulebb: 'ED2K / Kademlia via REST',
   rtorrent: 'BitTorrent via XML-RPC / SCGI',
   qbittorrent: 'BitTorrent via WebUI API',
   deluge: 'BitTorrent via WebUI JSON-RPC',
@@ -161,6 +170,7 @@ const ClientInstanceModal = ({ isOpen, onClose, onSave, onTest, editClient = nul
     }
     if (!formState.host || !formState.port) return false;
     if (formState.type === 'amule' && !formState.password && !isFieldFromEnv('password')) return false;
+    if (formState.type === 'emulebb' && !formState.apiKey && !isFieldFromEnv('apiKey')) return false;
     return true;
   })();
 
@@ -361,7 +371,7 @@ const ClientInstanceModal = ({ isOpen, onClose, onSave, onTest, editClient = nul
 
             if (fieldDef.sensitive) {
               const envProvided = isFieldFromEnv(fieldDef.field);
-              const prefix = { amule: 'AMULE', rtorrent: 'RTORRENT', qbittorrent: 'QBITTORRENT', deluge: 'DELUGE', transmission: 'TRANSMISSION' }[formState.type];
+              const prefix = { amule: 'AMULE', emulebb: 'EMULEBB', rtorrent: 'RTORRENT', qbittorrent: 'QBITTORRENT', deluge: 'DELUGE', transmission: 'TRANSMISSION' }[formState.type];
               const suffix = { password: 'PASSWORD', username: 'USERNAME' }[fieldDef.field];
               const envName = prefix && suffix ? `${prefix}_${suffix}` : null;
 
