@@ -75,6 +75,7 @@ function normalizeTransfer(file, instanceId, categoryById = new Map()) {
     category: categoryName,
     categoryId: Number.isInteger(categoryId) ? categoryId : 0,
     categoryName,
+    renameSupported: true,
     ed2kLink: makeEd2kLink(file),
     progress: file.progress <= 1 ? (file.progress || 0) * 100 : (file.progress || 0),
     speed: file.downloadSpeed || 0,
@@ -109,6 +110,7 @@ function normalizeSharedFile(file, instanceId) {
     progress: 1,
     priority: file.uploadPriority || null,
     ed2kLink: makeEd2kLink(file),
+    renameSupported: false,
     comment: file.comment ?? '',
     rating: file.rating ?? file.userRating ?? 0,
     hasComment: !!file.hasComment,
@@ -342,6 +344,23 @@ class EmulebbManager extends BaseClientManager {
       return { success: true, pathsToDelete: [] };
     }
     return { success: false, error: first?.error || 'eMule BB rejected the delete request' };
+  }
+
+  /**
+   * Rename an incomplete transfer.
+   * @param {string} hash - File hash
+   * @param {string} newName - New display filename
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async renameFile(hash, newName) {
+    try {
+      await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
+        name: String(newName || '').trim()
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   }
 
   /**

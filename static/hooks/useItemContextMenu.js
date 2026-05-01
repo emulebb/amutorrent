@@ -154,7 +154,7 @@ export const useItemContextMenu = ({
     }
 
     // Rename (only for clients with renameFile capability, gated on ownership)
-    if (onRename && caps.renameFile && hasCap('rename_files') && canMutate) {
+    if (onRename && caps.renameFile && item.renameSupported !== false && hasCap('rename_files') && canMutate) {
       menuItems.push({
         label: 'Rename',
         icon: 'edit',

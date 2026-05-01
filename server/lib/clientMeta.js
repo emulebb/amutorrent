@@ -116,7 +116,7 @@ const CLIENT_TYPES = {
       categoryAssignment: true,
       categories: false,
       logs: true,
-      renameFile: false,
+      renameFile: true,
       fileRatingComment: true,
       customSavePath: false
     }

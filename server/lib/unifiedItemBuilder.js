@@ -139,6 +139,7 @@ function applyDownloadData(item, download, categoryManager = null) {
 
     // Priority
     item.downloadPriority = download.priority ?? item.downloadPriority;
+    item.renameSupported = download.renameSupported ?? item.renameSupported;
 
     // Visualization
     item.partStatus = download.partStatus || item.partStatus;
@@ -277,6 +278,9 @@ function applySharedData(item, sharedFile) {
 
     // Upload priority
     item.uploadPriority = sharedFile.priority ?? item.uploadPriority;
+    if (sharedFile.renameSupported === false && !item.downloading) {
+      item.renameSupported = false;
+    }
 
     // User-supplied metadata (aMule stores a comment + rating per shared file)
     item.comment = sharedFile.comment ?? item.comment ?? '';

@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const test = require('node:test');
+const { assembleUnifiedItems } = require('../server/lib/unifiedItemBuilder');
 const { EmulebbManager } = require('../server/modules/emulebbManager');
 
 async function withMockEmulebb(handler, run) {
@@ -74,6 +75,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
     assert.equal(data.downloads[0].category, 'Movies');
     assert.equal(data.downloads[0].categoryId, 2);
     assert.equal(data.downloads[0].progress, 25);
+    assert.equal(data.downloads[0].renameSupported, true);
   });
 });
 
@@ -113,12 +115,78 @@ test('eMule BB manager normalizes shared metadata and updates rating/comment', a
     assert.equal(data.sharedFiles[0].comment, 'verified');
     assert.equal(data.sharedFiles[0].rating, 4);
     assert.equal(data.sharedFiles[0].hasComment, true);
+    assert.equal(data.sharedFiles[0].renameSupported, false);
 
     assert.deepEqual(
       await manager.setFileRatingComment('abcdefabcdefabcdefabcdefabcdefab', 'better', 5),
       { success: true }
     );
   });
+});
+
+test('eMule BB manager renames incomplete transfers through REST', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'PATCH' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab') {
+      assert.deepEqual(body, { name: 'renamed.bin' });
+      return { body: { hash: 'abcdefabcdefabcdefabcdefabcdefab', name: 'renamed.bin' } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    assert.deepEqual(
+      await manager.renameFile('abcdefabcdefabcdefabcdefabcdefab', ' renamed.bin '),
+      { success: true }
+    );
+  });
+});
+
+test('eMule BB manager reports REST rename failures without throwing', async () => {
+  await withMockEmulebb(() => ({
+    status: 409,
+    body: { error: 'INVALID_STATE', message: 'completed transfers cannot be renamed through this endpoint' }
+  }), async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const result = await manager.renameFile('abcdefabcdefabcdefabcdefabcdefab', 'renamed.bin');
+    assert.equal(result.success, false);
+    assert.match(result.error, /eMule BB INVALID_STATE: completed transfers cannot be renamed/);
+  });
+});
+
+test('eMule BB rename support is preserved through unified item assembly', () => {
+  const [downloadItem] = assembleUnifiedItems(
+    [{
+      clientType: 'emulebb',
+      instanceId: 'emulebb-test',
+      hash: 'abcdefabcdefabcdefabcdefabcdefab',
+      name: 'active.bin',
+      size: 100,
+      downloaded: 25,
+      progress: 25,
+      state: 'downloading',
+      renameSupported: true
+    }],
+    [],
+    null
+  );
+  assert.equal(downloadItem.renameSupported, true);
+
+  const [sharedItem] = assembleUnifiedItems(
+    [],
+    [{
+      clientType: 'emulebb',
+      instanceId: 'emulebb-test',
+      hash: 'fedcbafedcbafedcbafedcbafedcbafe',
+      name: 'complete.bin',
+      size: 100,
+      renameSupported: false
+    }],
+    null
+  );
+  assert.equal(sharedItem.renameSupported, false);
 });
 
 test('eMule BB manager assigns categories by existing name and handles delete shapes', async () => {
