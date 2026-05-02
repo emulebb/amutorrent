@@ -61,6 +61,7 @@ function createHttpContext(req) {
   const clientIp = req.ip || 'unknown';
   const isAdmin = config.getAuthEnabled() ? (req.session?.isAdmin || false) : true;
 
+  const source = `HTTP-API ${clientIp}(${username})`;
   const context = {
     // Mock ws with user info for handlers that access ws.user (e.g., snapshot filtering)
     ws: {
@@ -72,7 +73,11 @@ function createHttpContext(req) {
         subscriptions: new Set()
       }
     },
-    log: (...args) => logger.info(`[HTTP-API] [${clientIp}(${username})]`, ...args),
+    log: (...args) => logger.infoFor(source, ...args),
+    info: (...args) => logger.infoFor(source, ...args),
+    warn: (...args) => logger.warnFor(source, ...args),
+    error: (...args) => logger.errorFor(source, ...args),
+    debug: (...args) => logger.debugFor(source, ...args),
     send: onSend,
     broadcast: (data) => onBroadcast(data),
     clientInfo: {
