@@ -19,13 +19,18 @@ function normalizeBasePath(rawPath) {
   return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/^\/+|\/+$/g, '')}`;
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function normalizeComparablePath(rawPath) {
   return String(rawPath || '').trim().replace(/[\\/]+$/g, '').toLowerCase();
 }
 
 function makeEd2kLink(file) {
-  if (!file?.hash || !file?.name || !file?.size) return null;
-  return `ed2k://|file|${encodeURIComponent(file.name)}|${file.size}|${String(file.hash).toLowerCase()}|/`;
+  const size = file?.sizeBytes ?? file?.size;
+  if (!file?.hash || !file?.name || !size) return null;
+  return `ed2k://|file|${encodeURIComponent(file.name)}|${size}|${String(file.hash).toLowerCase()}|/`;
 }
 
 function unwrapItems(payload) {
@@ -97,6 +102,10 @@ function parseOptionalNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function kibPerSecondToBytesPerSecond(value) {
+  return Math.round(parseFiniteNumber(value, 0) * 1024);
+}
+
 function computePartCompletion(availableParts, partCount) {
   if (availableParts == null || partCount == null || partCount <= 0) return null;
   return Math.max(0, Math.min(100, Math.round((availableParts * 100) / partCount)));
@@ -104,25 +113,27 @@ function computePartCompletion(availableParts, partCount) {
 
 function normalizeTransfer(file, instanceId, categoryById = new Map()) {
   const hash = String(file.hash || '').toLowerCase();
-  const categoryId = Number.isInteger(file.category) ? file.category : Number.parseInt(file.category, 10);
+  const categoryId = Number.isInteger(file.categoryId) ? file.categoryId : Number.parseInt(file.categoryId, 10);
   const categoryName = file.categoryName || categoryById.get(categoryId)?.name || 'Default';
+  const size = file.sizeBytes ?? file.size ?? 0;
+  const completed = file.completedBytes ?? file.sizeDone ?? 0;
   return {
     clientType: 'emulebb',
     instanceId,
     hash,
     name: file.name || 'Unknown',
     rawName: file.name || 'Unknown',
-    size: file.size || 0,
-    downloaded: file.sizeDone || 0,
+    size,
+    downloaded: completed,
     category: categoryName,
     categoryId: Number.isInteger(categoryId) ? categoryId : 0,
     categoryName,
     renameSupported: true,
     ed2kLink: makeEd2kLink(file),
     progress: file.progress <= 1 ? (file.progress || 0) * 100 : (file.progress || 0),
-    speed: file.downloadSpeed || 0,
-    status: file.state || 'stalled',
-    statusText: file.state || 'stalled',
+    speed: kibPerSecondToBytesPerSecond(file.downloadSpeedKiBps ?? file.downloadSpeed),
+    status: file.state || 'queued',
+    statusText: file.state || 'queued',
     priority: file.priority || null,
     sourceCount: file.sources || 0,
     sourceCountXfer: file.sourcesTransferring || 0,
@@ -140,7 +151,7 @@ function normalizeTransfer(file, instanceId, categoryById = new Map()) {
 }
 
 function normalizeTransferSource(source, transfer) {
-  const address = source.ip || source.address || '';
+  const address = source.address || source.ip || '';
   const port = parseFiniteNumber(source.port, 0);
   const availableParts = parseOptionalNumber(source.availableParts);
   const partCount = parseOptionalNumber(source.partCount);
@@ -148,7 +159,7 @@ function normalizeTransferSource(source, transfer) {
   return {
     role: 'download',
     clientType: 'emulebb',
-    id: userHash || `${address}:${port}`,
+    id: source.clientId ? String(source.clientId).toLowerCase() : (userHash || `${address}:${port}`),
     userHash: userHash || null,
     userName: source.userName || '',
     fileName: transfer?.name || '',
@@ -156,7 +167,7 @@ function normalizeTransferSource(source, transfer) {
     port,
     software: source.clientSoftware || 'Unknown',
     softwareId: null,
-    downloadRate: parseFiniteNumber(source.downloadRate, 0),
+    downloadRate: kibPerSecondToBytesPerSecond(source.downloadSpeedKiBps ?? source.downloadRate),
     uploadRate: 0,
     downloadTotal: 0,
     uploadTotal: 0,
@@ -195,16 +206,17 @@ function normalizeTransferPart(part) {
 
 function normalizeSharedFile(file, instanceId) {
   const hash = String(file.hash || '').toLowerCase();
+  const size = file.sizeBytes ?? file.size ?? 0;
   return {
     clientType: 'emulebb',
     instanceId,
     hash,
     name: file.name || 'Unknown',
     rawName: file.name || 'Unknown',
-    size: file.size || 0,
-    downloaded: file.size || 0,
+    size,
+    downloaded: size,
     progress: 1,
-    priority: file.uploadPriority || null,
+    priority: file.priority || file.uploadPriority || null,
     ed2kLink: makeEd2kLink(file),
     renameSupported: false,
     comment: file.comment ?? '',
@@ -215,9 +227,9 @@ function normalizeSharedFile(file, instanceId) {
     directory: file.directory || null,
     requests: file.requests || 0,
     requestsTotal: file.allTimeRequests || 0,
-    acceptedCount: file.accepts || 0,
+    acceptedCount: file.acceptedRequests ?? file.accepts ?? 0,
     acceptedCountTotal: file.allTimeAccepts || 0,
-    transferred: file.transferred || 0,
+    transferred: file.transferredBytes ?? file.transferred ?? 0,
     transferredTotal: file.allTimeTransferred || 0,
     peers: [],
     raw: file
@@ -228,23 +240,25 @@ function normalizeUpload(client, instanceId) {
   return {
     clientType: 'emulebb',
     instanceId,
+    clientId: client.clientId || client.userHash || null,
     userName: client.userName || '',
     userHash: client.userHash || null,
     clientSoftware: client.clientSoftware || '',
     clientMod: client.clientMod || '',
     uploadState: client.uploadState || 'idle',
-    uploadSpeed: client.uploadSpeed || 0,
-    uploaded: client.sessionUploaded || 0,
+    uploadSpeed: kibPerSecondToBytesPerSecond(client.uploadSpeedKiBps ?? client.uploadSpeed),
+    uploaded: client.uploadedBytes ?? client.sessionUploaded ?? 0,
     queueUploaded: client.queueSessionUploaded || 0,
     waitTime: client.waitTimeMs || 0,
     score: client.score || 0,
-    ip: client.ip || '',
+    ip: client.address || client.ip || '',
+    address: client.address || client.ip || '',
     port: client.port || 0,
     lowId: !!client.lowId,
     friendSlot: !!client.friendSlot,
     requestedFileHash: client.requestedFileHash || null,
     requestedFileName: client.requestedFileName || null,
-    requestedFileSize: client.requestedFileSize || null,
+    requestedFileSize: client.requestedFileSizeBytes ?? client.requestedFileSize ?? null,
     raw: client
   };
 }
@@ -427,10 +441,10 @@ class EmulebbManager extends BaseClientManager {
   extractMetrics(rawStats) {
     const stats = rawStats?.stats || rawStats || {};
     return {
-      uploadSpeed: stats.uploadSpeed || 0,
-      downloadSpeed: stats.downloadSpeed || 0,
-      uploadTotal: stats.sessionUploaded || 0,
-      downloadTotal: stats.sessionDownloaded || 0
+      uploadSpeed: kibPerSecondToBytesPerSecond(stats.uploadSpeedKiBps ?? stats.uploadSpeed),
+      downloadSpeed: kibPerSecondToBytesPerSecond(stats.downloadSpeedKiBps ?? stats.downloadSpeed),
+      uploadTotal: stats.sessionUploadedBytes ?? stats.sessionUploaded ?? 0,
+      downloadTotal: stats.sessionDownloadedBytes ?? stats.sessionDownloaded ?? 0
     };
   }
 
@@ -490,7 +504,7 @@ class EmulebbManager extends BaseClientManager {
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
       deleteFiles: deleteFiles !== false
     });
-    const first = payload?.results?.[0];
+    const first = payload?.items?.[0] ?? payload?.results?.[0];
     if (payload?.ok === true || first?.ok) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
@@ -640,7 +654,7 @@ class EmulebbManager extends BaseClientManager {
   async setCategoryOrLabel(hash, { categoryId, categoryName } = {}) {
     const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
     if (Number.isInteger(numericCategoryId) && numericCategoryId >= 0) {
-      await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { category: numericCategoryId });
+      await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { categoryId: numericCategoryId });
       return { success: true };
     }
 
@@ -669,10 +683,21 @@ class EmulebbManager extends BaseClientManager {
       query,
       method,
       type: fileType,
-      ext: extension || ''
+      extension: extension || ''
     });
-    this.lastSearchId = start.searchId || start.search_id;
-    return await this.getSearchResults();
+    this.lastSearchId = start.id || start.searchId;
+    if (!this.lastSearchId) return { results: [], resultsLength: 0, status: start.status || 'unknown' };
+    return await this._pollSearchResults();
+  }
+
+  async _pollSearchResults({ maxAttempts = 5, intervalMs = 1000 } = {}) {
+    let latest = { results: [], resultsLength: 0, status: 'running' };
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      latest = await this.getSearchResults();
+      if (latest.resultsLength > 0 || latest.status === 'complete') return latest;
+      if (attempt + 1 < maxAttempts) await delay(intervalMs);
+    }
+    return latest;
   }
 
   async getSearchResults() {
@@ -681,7 +706,7 @@ class EmulebbManager extends BaseClientManager {
     const results = (payload.results || []).map(item => ({
       fileHash: item.hash,
       fileName: item.name,
-      fileSize: item.size,
+      fileSize: item.sizeBytes ?? item.size,
       sourceCount: item.sources || 0,
       completeSourceCount: item.completeSources || 0,
       ed2kLink: makeEd2kLink(item),
@@ -697,7 +722,7 @@ class EmulebbManager extends BaseClientManager {
     const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
     if (this.lastSearchId) {
       const payload = {};
-      if (Number.isInteger(numericCategoryId) && numericCategoryId >= 0) payload.category = numericCategoryId;
+      if (Number.isInteger(numericCategoryId) && numericCategoryId >= 0) payload.categoryId = numericCategoryId;
       await this._request(
         'POST',
         `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}/results/${encodeURIComponent(fileHash)}/operations/download`,
@@ -763,7 +788,7 @@ class EmulebbManager extends BaseClientManager {
       .filter(Boolean)
       .map(path => ({ path, recursive: true }));
     const payload = await this._request('PATCH', '/api/v1/shared-directories', { roots });
-    const model = payload?.sharedDirectories || {};
+    const model = payload || {};
     const totalDirs = Array.isArray(model.items) ? model.items.length : roots.length;
     const inaccessibleRoots = Array.isArray(model.roots)
       ? model.roots.filter(row => row?.accessible === false).map(row => row.path).filter(Boolean)

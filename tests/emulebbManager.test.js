@@ -58,7 +58,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
     if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
       return {
         body: {
-          transfers: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'movie.mkv', size: 100, sizeDone: 25, progress: 0.25, category: 2 }],
+          transfers: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'movie.mkv', sizeBytes: 100, completedBytes: 25, progress: 0.25, categoryId: 2 }],
           sharedFiles: [],
           uploads: []
         }
@@ -107,8 +107,8 @@ test('eMule BB manager hydrates transfer sources from REST', async () => {
           transfers: [{
             hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
             name: 'movie.mkv',
-            size: 97280000,
-            sizeDone: 24320000,
+            sizeBytes: 97280000,
+            completedBytes: 24320000,
             progress: 0.25,
             sources: 1,
             sourcesTransferring: 1
@@ -129,10 +129,10 @@ test('eMule BB manager hydrates transfer sources from REST', async () => {
             userHash: 'FEDCBA9876543210FEDCBA9876543210',
             clientSoftware: 'eMule 0.70a',
             downloadState: 'Downloading',
-            downloadRate: 1234,
+            downloadSpeedKiBps: 1.205078125,
             availableParts: 3,
             partCount: 10,
-            ip: '1.2.3.4',
+            address: '1.2.3.4',
             port: 4662,
             serverIp: '5.6.7.8',
             serverPort: 4661,
@@ -186,8 +186,8 @@ test('eMule BB manager keeps transfers when source hydration fails', async () =>
           transfers: [{
             hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
             name: 'movie.mkv',
-            size: 100,
-            sizeDone: 25,
+            sizeBytes: 100,
+            completedBytes: 25,
             progress: 0.25,
             sources: 1
           }],
@@ -258,7 +258,7 @@ test('eMule BB manager normalizes shared metadata and updates rating/comment', a
           sharedFiles: [{
             hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
             name: 'shared.avi',
-            size: 100,
+            sizeBytes: 100,
             comment: 'verified',
             rating: 4,
             hasComment: true,
@@ -431,7 +431,7 @@ test('eMule BB manager downloads native search results with selected category', 
       return { body: { items: [{ id: 0, name: 'Default' }, { id: 3, name: 'Linux' }] } };
     }
     if (method === 'POST' && url === '/api/v1/searches/99/results/0123456789abcdef0123456789abcdef/operations/download') {
-      assert.deepEqual(body, { category: 3 });
+      assert.deepEqual(body, { categoryId: 3 });
       return { body: { ok: true } };
     }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
@@ -493,17 +493,17 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       if (body.query === 'ubuntu') {
-        assert.deepEqual(body, { query: 'ubuntu', method: 'kad', type: 'any', ext: '' });
+        assert.deepEqual(body, { query: 'ubuntu', method: 'kad', type: 'any', extension: '' });
       } else {
-        assert.deepEqual(body, { query: 'photo', method: 'automatic', type: 'image', ext: 'jpg' });
+        assert.deepEqual(body, { query: 'photo', method: 'automatic', type: 'image', extension: 'jpg' });
       }
-      return { body: { search_id: body.query === 'ubuntu' ? '10' : '11' } };
+      return { body: { id: body.query === 'ubuntu' ? '10' : '11', status: 'running', results: [] } };
     }
     if (method === 'GET' && (url === '/api/v1/searches/10' || url === '/api/v1/searches/11')) {
       return {
         body: {
           status: 'complete',
-          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'result.bin', size: 42, sources: 5 }]
+          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'result.bin', sizeBytes: 42, sources: 5 }]
         }
       };
     }
@@ -546,18 +546,15 @@ test('eMule BB manager maps native shared-directory REST operations', async () =
       });
       return {
         body: {
-          ok: true,
-          sharedDirectories: {
-            roots: [
-              { path: 'C:\\share\\', recursive: true, accessible: true },
-              { path: 'D:\\media\\', recursive: true, accessible: true }
-            ],
-            items: [
-              { path: 'C:\\share\\', recursive: true, accessible: true },
-              { path: 'D:\\media\\', recursive: true, accessible: true },
-              { path: 'D:\\media\\isos\\', recursive: false, accessible: true, monitorOwned: true }
-            ]
-          }
+          roots: [
+            { path: 'C:\\share\\', recursive: true, accessible: true },
+            { path: 'D:\\media\\', recursive: true, accessible: true }
+          ],
+          items: [
+            { path: 'C:\\share\\', recursive: true, accessible: true },
+            { path: 'D:\\media\\', recursive: true, accessible: true },
+            { path: 'D:\\media\\isos\\', recursive: false, accessible: true, monitorOwned: true }
+          ]
         }
       };
     }
