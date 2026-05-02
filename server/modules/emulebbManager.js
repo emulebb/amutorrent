@@ -29,8 +29,31 @@ function makeEd2kLink(file) {
 }
 
 function unwrapItems(payload) {
+  if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return unwrapItems(payload.data);
+  }
   if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload.items;
   return Array.isArray(payload) ? payload : [];
+}
+
+function unwrapPayload(payload) {
+  if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data;
+  }
+  return payload;
+}
+
+function normalizeErrorPayload(payload, statusCode, text) {
+  if (payload?.error && typeof payload.error === 'object') {
+    return {
+      code: payload.error.code || `HTTP ${statusCode}`,
+      message: payload.error.message || text || `HTTP ${statusCode}`
+    };
+  }
+  return {
+    code: payload?.error || `HTTP ${statusCode}`,
+    message: payload?.message || text || `HTTP ${statusCode}`
+  };
 }
 
 function normalizeCategory(category) {
@@ -151,6 +174,22 @@ function normalizeTransferSource(source, transfer) {
     isEncrypted: false,
     isIncoming: false,
     raw: source
+  };
+}
+
+function normalizeTransferPart(part) {
+  return {
+    index: parseFiniteNumber(part.index, 0),
+    start: parseFiniteNumber(part.start, 0),
+    end: parseFiniteNumber(part.end, 0),
+    size: parseFiniteNumber(part.size, 0),
+    completedBytes: parseFiniteNumber(part.completedBytes, 0),
+    gapBytes: parseFiniteNumber(part.gapBytes, 0),
+    complete: !!part.complete,
+    requested: !!part.requested,
+    corrupted: !!part.corrupted,
+    availableSources: parseFiniteNumber(part.availableSources, 0),
+    raw: part
   };
 }
 
@@ -275,14 +314,13 @@ class EmulebbManager extends BaseClientManager {
             return reject(new Error(`Invalid JSON from eMule BB: ${err.message}`));
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            const code = payload?.error || `HTTP ${res.statusCode}`;
-            const message = payload?.message || text || `HTTP ${res.statusCode}`;
+            const { code, message } = normalizeErrorPayload(payload, res.statusCode, text);
             return reject(new Error(`eMule BB ${code}: ${message}`));
           }
           if (payload == null) {
             return reject(new Error('eMule BB returned an empty JSON response'));
           }
-          resolve(payload);
+          resolve(unwrapPayload(payload));
         });
       });
       req.on('error', err => reject(new Error(`eMule BB request failed: ${err.message}`)));
@@ -338,11 +376,23 @@ class EmulebbManager extends BaseClientManager {
     await Promise.all(downloads.map(async (download, index) => {
       const sourceCount = parseFiniteNumber(transferRows[index]?.sources ?? download.sourceCount, 0);
       const transferringCount = parseFiniteNumber(transferRows[index]?.sourcesTransferring ?? download.sourceCountXfer, 0);
-      if (!download.hash || (sourceCount <= 0 && transferringCount <= 0)) return;
+      if (!download.hash) return;
       try {
-        download.peers = await this._getTransferSources(download.hash, download);
+        const details = await this._getTransferDetails(download.hash, download);
+        download.peers = details.sources;
+        download.partStatus = details.parts;
+        download.gapStatus = details.gaps;
+        download.reqStatus = details.requests;
       } catch (err) {
-        this.warn(`Failed to fetch eMule BB sources for ${download.hash}: ${logger.errorDetail(err)}`);
+        if (sourceCount > 0 || transferringCount > 0) {
+          try {
+            download.peers = await this._getTransferSources(download.hash, download);
+          } catch (sourceErr) {
+            this.warn(`Failed to fetch eMule BB sources for ${download.hash}: ${logger.errorDetail(sourceErr)}`);
+          }
+        } else {
+          this.debug?.(`No eMule BB transfer details for ${download.hash}: ${logger.errorDetail(err)}`);
+        }
       }
     }));
     return {
@@ -355,6 +405,17 @@ class EmulebbManager extends BaseClientManager {
   async _getTransferSources(hash, transfer) {
     const payload = await this._request('GET', `/api/v1/transfers/${encodeURIComponent(hash)}/sources`);
     return unwrapItems(payload).map(source => normalizeTransferSource(source, transfer));
+  }
+
+  async _getTransferDetails(hash, transfer) {
+    const payload = await this._request('GET', `/api/v1/transfers/${encodeURIComponent(hash)}/details`);
+    const parts = unwrapItems(payload?.parts).map(normalizeTransferPart);
+    return {
+      sources: unwrapItems(payload?.sources).map(source => normalizeTransferSource(source, transfer)),
+      parts,
+      gaps: parts.filter(part => part.gapBytes > 0),
+      requests: parts.filter(part => part.requested)
+    };
   }
 
   async getStats() {
@@ -394,7 +455,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async _transferAction(hash, action) {
-    await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { action });
+    await this._request('POST', `/api/v1/transfers/${encodeURIComponent(hash)}/operations/${encodeURIComponent(action)}`, {});
     return true;
   }
 
@@ -417,9 +478,17 @@ class EmulebbManager extends BaseClientManager {
     return false;
   }
 
-  async deleteItem(hash, { deleteFiles } = {}) {
+  async deleteItem(hash, { deleteFiles, isShared } = {}) {
+    if (isShared) {
+      const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}`, {
+        deleteFiles: deleteFiles === true
+      });
+      if (payload?.ok === true) return { success: true, pathsToDelete: [] };
+      return { success: false, error: 'eMule BB rejected the shared-file delete request' };
+    }
+
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
-      delete_files: deleteFiles !== false
+      deleteFiles: deleteFiles !== false
     });
     const first = payload?.results?.[0];
     if (payload?.ok === true || first?.ok) {
@@ -602,7 +671,7 @@ class EmulebbManager extends BaseClientManager {
       type: fileType,
       ext: extension || ''
     });
-    this.lastSearchId = start.search_id;
+    this.lastSearchId = start.searchId || start.search_id;
     return await this.getSearchResults();
   }
 
@@ -625,6 +694,19 @@ class EmulebbManager extends BaseClientManager {
   async addSearchResult(fileHash, categoryId = 0, username = null, fileInfoCallback = null) {
     const file = this.lastSearchResults.find(item => item.fileHash?.toLowerCase() === fileHash.toLowerCase());
     if (!file?.ed2kLink) return false;
+    const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
+    if (this.lastSearchId) {
+      const payload = {};
+      if (Number.isInteger(numericCategoryId) && numericCategoryId >= 0) payload.category = numericCategoryId;
+      await this._request(
+        'POST',
+        `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}/results/${encodeURIComponent(fileHash)}/operations/download`,
+        payload
+      );
+      if (fileInfoCallback) await fileInfoCallback(fileHash).catch(() => null);
+      this.trackDownload(fileHash, file.fileName || 'Unknown', file.fileSize || null, username, this._categoryById.get(numericCategoryId)?.name || 'Default');
+      return true;
+    }
     const success = await this.addEd2kLink(file.ed2kLink, categoryId, username);
     if (success && fileInfoCallback) await fileInfoCallback(fileHash).catch(() => null);
     return success;
@@ -635,12 +717,12 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async connectServer(ip, port) {
-    await this._request('PATCH', `/api/v1/servers/${encodeURIComponent(`${ip}:${port}`)}`, { action: 'connect' });
+    await this._request('POST', `/api/v1/servers/${encodeURIComponent(`${ip}:${port}`)}/operations/connect`, {});
     return true;
   }
 
   async disconnectServer() {
-    await this._request('PATCH', '/api/v1/servers/current:1', { action: 'disconnect' });
+    await this._request('POST', '/api/v1/servers/operations/disconnect', {});
     return true;
   }
 
@@ -694,7 +776,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async refreshSharedFiles() {
-    await this._request('POST', '/api/v1/shared-directories/reload', {});
+    await this._request('POST', '/api/v1/shared-directories/operations/reload', {});
     return true;
   }
 
