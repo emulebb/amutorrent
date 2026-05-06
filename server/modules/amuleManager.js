@@ -20,7 +20,19 @@ class AmuleManager extends BaseClientManager {
     super();
     this.sharedFilesReloadInterval = null;  // Timer for automatic shared files reload
     this.searchInProgress = false;
+    this._lastSharedHashes = new Set();           // hashes seen in the previous successful getUpdate
+    this._pendingSharedDeletions = new Map();     // hash → expiry timestamp; explains expected drops
     this.setupGlobalErrorHandlers();
+  }
+
+  /**
+   * Record an in-flight deletion so the next getUpdate's shared-file count drop is
+   * recognized as our doing rather than misread as a state desync. Called from
+   * deleteItem (the universal chokepoint for qBit-compat / WS / REST delete paths).
+   */
+  markSharedDeletion(hash, ttlMs = 120000) {
+    if (!hash) return;
+    this._pendingSharedDeletions.set(String(hash).toLowerCase(), Date.now() + ttlMs);
   }
 
   /**
@@ -316,20 +328,46 @@ class AmuleManager extends BaseClientManager {
       throw err;
     }
 
-    // Desync detection: if shared-file count collapses from non-zero to zero
-    // without a user-initiated refresh, the library's state cache has been
-    // pruned by a partial response. Treat the same as a hard failure — force
-    // a reconnect to resync from scratch. Shared-file count is the stablest
-    // signal (downloads legitimately come and go; shared libraries don't
-    // vanish spontaneously).
-    const sharedCount = updateData.sharedFiles?.length ?? 0;
-    const prevShared = this._lastSharedCount ?? 0;
-    if (prevShared > 0 && sharedCount === 0) {
-      const err = new Error(`shared files dropped ${prevShared}→0 — state desync detected`);
+    // Desync detection: a 1→0 drop on the shared list normally means the user
+    // deleted their last file — but it can also mean the lib's _updateState
+    // got pruned by a partial response. We can't distinguish from the count
+    // alone, so we match against the hashes we've recorded as "expected to
+    // disappear" (set by deleteItem on every qBit-compat / WS / REST shared
+    // delete). Anything missing that we *didn't* delete ourselves stays
+    // suspicious and forces a reconnect.
+    const sharedHashes = new Set(
+      (updateData.sharedFiles || [])
+        .map(f => (f.fileHash ? String(f.fileHash).toLowerCase() : null))
+        .filter(Boolean)
+    );
+    // Reap expired pending deletions before matching.
+    const now = Date.now();
+    for (const [h, exp] of this._pendingSharedDeletions) {
+      if (exp <= now) this._pendingSharedDeletions.delete(h);
+    }
+    // Disappeared = was in last frame, isn't in this one.
+    const disappeared = [];
+    for (const h of this._lastSharedHashes) {
+      if (!sharedHashes.has(h)) disappeared.push(h);
+    }
+    // Each disappearance that matches a pending deletion is explained.
+    const unexplained = disappeared.filter(h => !this._pendingSharedDeletions.has(h));
+    // Drop pending entries we just observed disappear (their job is done).
+    for (const h of disappeared) this._pendingSharedDeletions.delete(h);
+
+    // Always update the previous-frame snapshot before potentially throwing,
+    // so a one-shot reconnect can't grow into the 100+ failure loop from #49.
+    this._lastSharedHashes = sharedHashes;
+    this._lastSharedCount = sharedHashes.size;
+
+    // Fire only on a full collapse (current = 0) with at least one unexplained
+    // disappearance. Partial drops are treated as legitimate (user deleted some
+    // via aMule's UI, etc.).
+    if (sharedHashes.size === 0 && unexplained.length > 0) {
+      const err = new Error(`shared files dropped ${disappeared.length}→0 (${unexplained.length} unexplained) — state desync detected`);
       triggerReconnect(err);
       throw err;
     }
-    this._lastSharedCount = sharedCount;
 
     const rawDownloads = updateData?.downloads || [];
     const rawSharedFiles = updateData?.sharedFiles || [];
@@ -706,6 +744,7 @@ class AmuleManager extends BaseClientManager {
         return { success: false, error: 'File path required for shared file deletion' };
       }
       this.trackDeletion(hash);
+      this.markSharedDeletion(hash);  // suppress upcoming desync false-positive on this hash
       return { success: true, pathsToDelete: [filePath] };
     }
 
