@@ -622,6 +622,62 @@ test('eMule BB manager keeps cached search results scoped to the requested metho
   });
 });
 
+test('eMule BB manager ignores native search payloads for the wrong method', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'POST' && url === '/api/v1/searches') {
+      assert.equal(body.method, 'server');
+      return { body: { id: '30', status: 'running', method: 'server' } };
+    }
+    if (method === 'GET' && url === '/api/v1/searches/30') {
+      return {
+        body: {
+          id: '30',
+          status: 'complete',
+          method: 'kad',
+          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5, method: 'kad' }]
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const result = await manager.search('rocco', 'server');
+    assert.equal(result.searchMethod, 'server');
+    assert.equal(result.resultsLength, 0);
+    assert.deepEqual(manager.lastSearchResults, []);
+  });
+});
+
+test('eMule BB manager accepts automatic searches with resolved native methods', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'POST' && url === '/api/v1/searches') {
+      assert.equal(body.method, 'automatic');
+      return { body: { id: '31', status: 'running', method: 'automatic' } };
+    }
+    if (method === 'GET' && url === '/api/v1/searches/31') {
+      return {
+        body: {
+          id: '31',
+          status: 'complete',
+          method: 'server',
+          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'server.bin', sizeBytes: 42, sources: 5, method: 'server' }]
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const result = await manager.search('rocco', 'automatic');
+    assert.equal(result.searchMethod, 'automatic');
+    assert.equal(result.resultsLength, 1);
+    assert.equal(result.results[0].fileName, 'server.bin');
+  });
+});
+
 test('eMule BB manager maps native shared-directory REST operations', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/shared-directories') {

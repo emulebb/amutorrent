@@ -65,6 +65,13 @@ function normalizeSearchRequest(type) {
   };
 }
 
+function searchMethodMatches(requestedMethod, actualMethod) {
+  if (!requestedMethod || !actualMethod) return true;
+  const requested = String(requestedMethod).toLowerCase();
+  const actual = String(actualMethod).toLowerCase();
+  return requested === 'automatic' || actual === 'automatic' || requested === actual;
+}
+
 function hashMatches(payload, expectedHash) {
   if (!expectedHash) return false;
   const expected = String(expectedHash).toLowerCase();
@@ -765,7 +772,21 @@ class EmulebbManager extends BaseClientManager {
   async getSearchResults() {
     if (!this.lastSearchId) return this.getCachedSearchResults();
     const payload = await this._request('GET', `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}`);
-    const results = (payload.results || []).map(item => ({
+    const backendMethod = payload.method ? String(payload.method).toLowerCase() : null;
+    if (!searchMethodMatches(this.lastSearchMeta?.method, backendMethod)) {
+      this.warn(`Ignoring eMule BB search results for method "${backendMethod}" while "${this.lastSearchMeta.method}" was requested`);
+      this.lastSearchResults = [];
+      this.lastSearchMeta = {
+        ...(this.lastSearchMeta || {}),
+        id: this.lastSearchId,
+        status: payload.status || this.lastSearchMeta?.status || 'unknown'
+      };
+      return this.getCachedSearchResults();
+    }
+    const expectedMethod = backendMethod || this.lastSearchMeta?.method || null;
+    const results = (payload.results || [])
+      .filter(item => searchMethodMatches(expectedMethod, item.method))
+      .map(item => ({
       fileHash: item.hash,
       fileName: item.name,
       fileSize: item.sizeBytes ?? item.size,
