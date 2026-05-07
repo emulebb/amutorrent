@@ -13,6 +13,8 @@ import { useAmuleInstanceSelector } from '../../hooks/useAmuleInstanceSelector.j
 
 const { createElement: h, useState, useEffect, useCallback } = React;
 
+const ED2K_SHARED_DIRS_API = '/api/v1/ed2k/shared-dirs';
+
 /**
  * @param {boolean} show
  * @param {function} onClose
@@ -79,7 +81,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSuccessMessage(null);
     setDirty(false);
     try {
-      const res = await fetch(`/api/emule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`);
+      const res = await fetch(`${ED2K_SHARED_DIRS_API}?instanceId=${encodeURIComponent(instanceId)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setConfigured(data.configured);
@@ -105,7 +107,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/emule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`${ED2K_SHARED_DIRS_API}/config?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sharedDirDatPath: configInput.trim() })
@@ -130,7 +132,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/emule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`${ED2K_SHARED_DIRS_API}/config?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sharedDirDatPath: '' })
@@ -189,7 +191,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/emule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`${ED2K_SHARED_DIRS_API}?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directories: roots })
@@ -213,7 +215,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setReloading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/emule/shared-dirs/reload?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`${ED2K_SHARED_DIRS_API}/reload?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
