@@ -149,7 +149,7 @@ const TYPE_RENDERERS = {
     const display = typeof v === 'number' ? (v >= 0 ? v.toFixed(2) : '-') : v;
     return h('span', { className: 'font-mono' }, display);
   },
-  percent: (v) => h('span', { className: 'font-mono' }, `${(v * 100).toFixed(2)}%`),
+  percent: (v) => h('span', { className: 'font-mono' }, formatProgressPercent(Number(v) * 100)),
   hash: (v) => {
     if (!v || v === '') return renderNull();
     return h('span', { className: 'font-mono text-xs break-all' }, v);

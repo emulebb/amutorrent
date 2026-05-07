@@ -12,7 +12,7 @@ import { useLiveData } from '../../contexts/LiveDataContext.js';
 import { useWebSocketConnection } from '../../contexts/WebSocketContext.js';
 import { useStaticData } from '../../contexts/StaticDataContext.js';
 import { SegmentsBar, Icon, Portal, Button, AlertBox, LoadingSpinner } from '../common/index.js';
-import { formatBytes, getProgressColor, getExportLink, getExportLinkLabel, calculateRatio } from '../../utils/index.js';
+import { formatBytes, clampProgressPercent, formatProgressPercent, getProgressColor, getExportLink, getExportLinkLabel, calculateRatio } from '../../utils/index.js';
 import { formatPriority, categorizeDownloadFields, categorizeSharedFields } from '../../utils/fieldFormatters.js';
 import { useCopyToClipboard } from '../../hooks/index.js';
 import {
@@ -267,7 +267,9 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
   // --- Variant-specific data ---
 
   // torrent clients (rtorrent/qbittorrent)
-  const isComplete = isTorrent && liveItem.progress >= 100;
+  const progressPercent = clampProgressPercent(liveItem.progress);
+  const progressDisplay = formatProgressPercent(progressPercent);
+  const isComplete = isTorrent && progressPercent >= 100;
   const torrentMessage = isTorrent ? (liveItem.message || '') : '';
   const trackersDetailed = isTorrent ? (itemDetail?.trackersDetailed || []) : [];
   const allPeers = liveItem.peers || [];
@@ -359,8 +361,8 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
           h('div', { className: 'text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2' }, 'Progress'),
           h('div', { className: 'w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 relative overflow-hidden' },
             h('div', {
-              className: `h-full rounded-full transition-all duration-300 ${getProgressColor(liveItem.progress)}`,
-              style: { width: `${liveItem.progress}%` }
+              className: `h-full rounded-full transition-all duration-300 ${getProgressColor(progressPercent)}`,
+              style: { width: `${progressPercent}%` }
             }),
             h('span', {
               className: 'absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-900 dark:text-white pointer-events-none',
@@ -369,10 +371,10 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
                 textShadow: isDark ? '0 0 1px black, 0 0 1px black' : '0 0 1px white, 0 0 1px white',
                 paintOrder: 'stroke fill'
               }
-            }, `${liveItem.progress}%`)
+            }, progressDisplay)
           ),
           h('div', { className: 'flex justify-between items-center mt-2 text-xs text-gray-600 dark:text-gray-400' },
-            h('span', null, `${liveItem.progress}% complete`),
+            h('span', null, `${progressDisplay} complete`),
             h('span', null, `${formatBytes(liveItem.sizeDownloaded)} / ${formatBytes(liveItem.size)}`)
           )
         ),
@@ -398,7 +400,7 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
             })
           ),
           h('div', { className: 'flex justify-between items-center mt-2 text-xs text-gray-600 dark:text-gray-400' },
-            h('span', null, `${liveItem.progress}% complete`),
+            h('span', null, `${progressDisplay} complete`),
             h('span', null, `${formatBytes(liveItem.sizeDownloaded)} / ${formatBytes(liveItem.size)}`)
           )
         ),
