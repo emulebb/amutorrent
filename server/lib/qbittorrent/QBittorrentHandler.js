@@ -19,6 +19,7 @@ const preferences = require('./preferences.json');
 class QBittorrentHandler {
   constructor() {
     // Dependencies (set via setDependencies)
+    this.getEd2kManager = null;
     this.getAmuleClient = null;
     this.getAmuleInstanceId = null;
     this.hashStore = null;
@@ -49,7 +50,8 @@ class QBittorrentHandler {
   /**
    * Set all dependencies at once
    */
-  setDependencies({ getAmuleClient, getAmuleInstanceId, hashStore, config, registry, isFirstRun, userManager, createSession, destroySession }) {
+  setDependencies({ getEd2kManager, getAmuleClient, getAmuleInstanceId, hashStore, config, registry, isFirstRun, userManager, createSession, destroySession }) {
+    this.getEd2kManager = getEd2kManager;
     this.getAmuleClient = getAmuleClient;
     this.getAmuleInstanceId = getAmuleInstanceId;
     this.hashStore = hashStore;
@@ -184,18 +186,19 @@ class QBittorrentHandler {
    * Initial sync is triggered by amuleManager.onConnect callback (see server.js)
    */
   initCategories() {
-    if (this.registry && this.registry.getByType('amule').length === 0) {
-      // aMule not configured: mark as initialized (no categories to load)
+    if (this.registry && [...this.registry.getByType('amule'), ...this.registry.getByType('emulebb')].length === 0) {
+      // No ED2K client configured: mark as initialized (no categories to load)
       this.categoryCacheInitialized = true;
     }
 
     // Periodic refresh (every 5 minutes)
-    setInterval(() => {
-      if (this.registry && this.registry.getByType('amule').length === 0) return;
+    const refreshTimer = setInterval(() => {
+      if (this.registry && [...this.registry.getByType('amule'), ...this.registry.getByType('emulebb')].length === 0) return;
       this.syncCategories().catch(err => {
         logger.error('[qBittorrent] Failed to refresh category mappings:', err);
       });
     }, minutesToMs(5));
+    if (typeof refreshTimer.unref === 'function') refreshTimer.unref();
   }
 
   /**
@@ -207,12 +210,12 @@ class QBittorrentHandler {
       return;
     }
 
-    const amuleClient = this.getAmuleClient?.();
-    if (!amuleClient) return;
+    const manager = this._getEd2kManager();
+    if (!manager || !manager.isConnected()) return;
 
     this.categorySyncInProgress = (async () => {
       try {
-        this.categoriesCache = await amuleClient.getCategories();
+        this.categoriesCache = await manager.getCategories();
 
         if (!this.categoryCacheInitialized) {
           this.categoryCacheInitialized = true;
@@ -239,6 +242,11 @@ class QBittorrentHandler {
     if (firstRun) return;
 
     if (this.categoryCacheInitialized) return;
+    const manager = this._getEd2kManager();
+    if (manager?.isConnected()) {
+      await this.syncCategories();
+      if (this.categoryCacheInitialized) return;
+    }
 
     if (!this.categoryInitPromise) {
       let resolve;
@@ -287,9 +295,9 @@ class QBittorrentHandler {
    */
   async getCategories(req, res) {
     try {
-      const amuleClient = this.getAmuleClient?.();
-      if (!amuleClient) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+      const manager = this._getEd2kManager();
+      if (!manager || !manager.isConnected()) {
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
       await this.syncCategories();
@@ -320,18 +328,18 @@ class QBittorrentHandler {
         return response.badRequest(res, 'Missing category parameter');
       }
 
-      const amuleClient = this.getAmuleClient?.();
-      if (!amuleClient) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+      const manager = this._getEd2kManager();
+      if (!manager || !manager.isConnected()) {
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
-      const result = await amuleClient.createCategory(
-        category,
-        savePath || '',
-        '',
-        0,
-        0
-      );
+      const result = await manager.createCategory({
+        name: category,
+        path: savePath || '',
+        comment: '',
+        color: 0,
+        priority: 0
+      });
 
       if (result.success && result.categoryId !== null) {
         await this.syncCategories();
@@ -452,9 +460,9 @@ class QBittorrentHandler {
         return response.badRequest(res, 'Missing urls parameter');
       }
 
-      const amuleClient = this.getAmuleClient?.();
-      if (!amuleClient) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+      const manager = this._getEd2kManager();
+      if (!manager || !manager.isConnected()) {
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
       const magnetLinks = urls
@@ -483,7 +491,7 @@ class QBittorrentHandler {
           const { ed2kLink, ed2kHash, magnetHash, fileName, fileSize } = convertMagnetToEd2k(magnetLink);
           logger.log('[qBittorrent] Converted to ED2K:', { ed2kHash, magnetHash, fileName, fileSize });
 
-          const success = await amuleClient.addEd2kLink(ed2kLink, categoryId);
+          const success = await manager.addEd2kLink(ed2kLink, categoryId);
           logger.log('[qBittorrent] addEd2kLink returned:', success);
 
           if (success) {
@@ -522,10 +530,12 @@ class QBittorrentHandler {
   }
 
   /**
-   * Resolve the aMule manager backing this compat layer. Falls back to null
+   * Resolve the ED2K manager backing this compat layer. Falls back to null
    * if no instance is configured / connected — callers handle that case.
    */
-  _getAmuleManager() {
+  _getEd2kManager() {
+    const manager = this.getEd2kManager?.();
+    if (manager) return manager;
     const instanceId = this.getAmuleInstanceId?.();
     if (!instanceId || !this.registry) return null;
     return this.registry.get(instanceId);
@@ -567,9 +577,9 @@ class QBittorrentHandler {
         return response.badRequest(res, 'Missing hashes parameter');
       }
 
-      const manager = this._getAmuleManager();
+      const manager = this._getEd2kManager();
       if (!manager || !manager.isConnected()) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
       const fs = require('fs').promises;
@@ -651,9 +661,9 @@ class QBittorrentHandler {
       const { hashes } = req.body;
       if (!hashes) return response.badRequest(res, 'Missing hashes parameter');
 
-      const manager = this._getAmuleManager();
+      const manager = this._getEd2kManager();
       if (!manager || !manager.isConnected()) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
       const hashList = hashes.split('|').map(h => h.trim()).filter(Boolean);
@@ -688,9 +698,9 @@ class QBittorrentHandler {
       const { hashes } = req.body;
       if (!hashes) return response.badRequest(res, 'Missing hashes parameter');
 
-      const manager = this._getAmuleManager();
+      const manager = this._getEd2kManager();
       if (!manager || !manager.isConnected()) {
-        return response.serviceUnavailable(res, 'aMule not connected');
+        return response.serviceUnavailable(res, 'ED2K client not connected');
       }
 
       const hashList = hashes.split('|').map(h => h.trim()).filter(Boolean);

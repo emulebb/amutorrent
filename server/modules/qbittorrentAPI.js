@@ -186,6 +186,7 @@ class QBittorrentAPI extends BaseModule {
       };
 
       this.handler.setDependencies({
+        getEd2kManager: () => resolveEd2kManager() || null,
         getAmuleClient: () => resolveEd2kManager()?.getClient() || null,
         getAmuleInstanceId: () => resolveEd2kManager()?.instanceId || null,
         hashStore: this.hashStore,
