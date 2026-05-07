@@ -317,26 +317,26 @@ function registerRoutes(app) {
   );
 
   // ============================================================================
-  // aMULE SPECIFIC
+  // ED2K SPECIFIC
   // ============================================================================
 
-  router.get('/amule/servers', requireCapability('view_servers'), (req, res) =>
+  router.get('/ed2k/servers', requireCapability('view_servers'), (req, res) =>
     bridge('handleGetServersList', req, res)
   );
 
-  router.post('/amule/servers/action', requireCapability('view_servers'), (req, res) =>
+  router.post('/ed2k/servers/action', requireCapability('view_servers'), (req, res) =>
     bridge('handleServerDoAction', req, res)
   );
 
-  router.get('/amule/server-info', requireCapability('view_servers'), (req, res) =>
+  router.get('/ed2k/server-info', requireCapability('view_servers'), (req, res) =>
     bridge('handleGetServerInfo', req, res)
   );
 
-  router.get('/amule/stats-tree', requireCapability('view_statistics'), (req, res) =>
+  router.get('/ed2k/stats-tree', requireCapability('view_statistics'), (req, res) =>
     bridge('handleGetStatsTree', req, res)
   );
 
-  router.post('/amule/refresh-shared', requireCapability('view_shared'), (req, res) =>
+  router.post('/ed2k/refresh-shared', requireCapability('view_shared'), (req, res) =>
     bridge('handleRefreshSharedFiles', req, res)
   );
 
@@ -344,7 +344,7 @@ function registerRoutes(app) {
   // LOGS
   // ============================================================================
 
-  router.get('/logs/amule', requireCapability('view_logs'), (req, res) =>
+  router.get('/logs/ed2k', requireCapability('view_logs'), (req, res) =>
     bridge('handleGetLog', req, res)
   );
 
