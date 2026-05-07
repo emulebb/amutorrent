@@ -398,6 +398,7 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
       return { body: { ok: true } };
     }
     if (method === 'DELETE' && url === '/api/v1/transfers/hash1') {
+      assert.deepEqual(body, { deleteFiles: true });
       return { body: { ok: true } };
     }
     if (method === 'DELETE' && url === '/api/v1/transfers/hash2') {
@@ -421,6 +422,10 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     if (method === 'DELETE' && url === '/api/v1/transfers/hash8') {
       return { body: { hash: 'hash8' } };
     }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash9') {
+      assert.deepEqual(body, { deleteFiles: true });
+      return { body: { ok: true } };
+    }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port }) => {
     const manager = createManager(port);
@@ -436,6 +441,7 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     assert.deepEqual(await manager.deleteItem('hash6'), { success: false, error: 'blocked' });
     assert.deepEqual(await manager.deleteItem('hash7'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash8'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash9', { deleteFiles: false }), { success: true, pathsToDelete: [] });
   });
 });
 
