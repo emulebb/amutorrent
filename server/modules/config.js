@@ -15,6 +15,7 @@ const instanceId = require('../lib/instanceId');
 // APP CONSTANTS
 // ============================================================================
 
+const AMUTORRENT_DATA_DIR_ENV = 'AMUTORRENT_DATA_DIR';
 const AUTO_REFRESH_INTERVAL = 3000;  // 3 seconds
 const COMMAND_TIMEOUT_MS = 300000;   // 5 minutes
 const CLEANUP_DAYS = 30;             // Keep metrics for 30 days
@@ -29,6 +30,7 @@ const CLEANUP_HOUR = 3;              // Run cleanup at 3 AM
  * Format: { envVar: { path, type, enablesIntegration } }
  */
 const ENV_VAR_MAP = {
+  [AMUTORRENT_DATA_DIR_ENV]: { path: 'directories.data', type: 'string' },
   PORT: { path: 'server.port', type: 'int' },
   BIND_ADDRESS: { path: 'server.host', type: 'string' },
   WEB_AUTH_ENABLED: { path: 'server.auth.enabled', type: 'boolean' },
@@ -179,7 +181,9 @@ class Config extends BaseModule {
     this.runtimeConfig = null;
     this.fileConfig = null; // Store loaded file config to track what comes from file vs env
     this.isDocker = process.env.RUNNING_IN_DOCKER === 'true';
-    this.dataDir = path.join(__dirname, '..', 'data');
+    this.dataDir = process.env[AMUTORRENT_DATA_DIR_ENV]
+      ? path.resolve(process.env[AMUTORRENT_DATA_DIR_ENV])
+      : path.join(__dirname, '..', 'data');
     this._cachedClients = null;
   }
 
@@ -1419,3 +1423,4 @@ module.exports.AUTO_REFRESH_INTERVAL = AUTO_REFRESH_INTERVAL;
 module.exports.COMMAND_TIMEOUT_MS = COMMAND_TIMEOUT_MS;
 module.exports.CLEANUP_DAYS = CLEANUP_DAYS;
 module.exports.CLEANUP_HOUR = CLEANUP_HOUR;
+module.exports.AMUTORRENT_DATA_DIR_ENV = AMUTORRENT_DATA_DIR_ENV;
