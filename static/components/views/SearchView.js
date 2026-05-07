@@ -45,8 +45,8 @@ const SearchView = () => {
   // Fetch previous search results on mount (always fetch fresh from backend)
   useEffect(() => {
     setSearchPreviousResultsLoaded(false);
-    fetchPreviousSearchResults(effectiveAmuleInstance);
-  }, [fetchPreviousSearchResults, setSearchPreviousResultsLoaded, effectiveAmuleInstance]);
+    fetchPreviousSearchResults(effectiveAmuleInstance, { type: searchType });
+  }, [fetchPreviousSearchResults, setSearchPreviousResultsLoaded, effectiveAmuleInstance, searchType]);
 
   return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
     // Search form (reusing QuickSearchWidget without border)
