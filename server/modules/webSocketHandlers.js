@@ -1243,6 +1243,11 @@ class WebSocketHandlers extends BaseModule {
       const batchData = await dataFetchService.getBatchData();
       // Strip heavy modal-only fields from broadcast
       const strippedItems = batchData.items.map(({ raw, trackersDetailed, ...rest }) => rest);
+      autoRefreshManager.updateCachedBatchItems(strippedItems, {
+        categories: batchData.categories,
+        clientDefaultPaths: batchData.clientDefaultPaths,
+        hasPathWarnings: batchData.hasPathWarnings
+      });
       context.broadcast({ type: 'batch-update', data: { items: strippedItems } }, {
         transform: (msg, user) => {
           const items = msg.data.items || [];
