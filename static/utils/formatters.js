@@ -49,11 +49,26 @@ export const clampProgressPercent = (value) => {
 };
 
 /**
+ * Format a decimal number without noisy trailing zeroes.
+ * @param {number} value - Number to format
+ * @param {number} maxDigits - Maximum fractional digits
+ * @returns {string} Compact decimal string
+ */
+export const formatCompactDecimal = (value, maxDigits = 2) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '0';
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDigits
+  });
+};
+
+/**
  * Format a percent value for progress UI.
  * @param {number|string} value - Percent value in the 0-100 range
- * @returns {string} Fixed two-decimal percentage string
+ * @returns {string} Compact percentage string
  */
-export const formatProgressPercent = (value) => `${clampProgressPercent(value).toFixed(2)}%`;
+export const formatProgressPercent = (value) => `${formatCompactDecimal(clampProgressPercent(value), 2)}%`;
 
 /**
  * Format statistics value for display
