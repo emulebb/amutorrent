@@ -52,3 +52,42 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
     restore();
   }
 });
+
+test('configuration accepts aMule and eMule BB as separate ED2K backends', () => {
+  const { config, restore } = reloadConfigWithEnv({});
+  const clientMeta = require('../server/lib/clientMeta');
+
+  try {
+    const runtimeConfig = config.getDefaults();
+    runtimeConfig.clients = [
+      {
+        type: 'amule',
+        name: 'aMule parity backend',
+        host: '127.0.0.1',
+        port: 4712,
+        password: 'amule-secret'
+      },
+      {
+        type: 'emulebb',
+        name: 'eMule BB native backend',
+        host: '127.0.0.1',
+        port: 4711,
+        apiKey: 'emulebb-key',
+        useSsl: false
+      }
+    ];
+
+    const validation = config.validateConfig(runtimeConfig);
+    assert.deepEqual(validation, { valid: true, errors: [] });
+
+    const clients = config._normalizeClientsArray(runtimeConfig.clients);
+    assert.equal(clients.length, 2);
+    assert.equal(clients[0].type, 'amule');
+    assert.equal(clients[1].type, 'emulebb');
+    assert.notEqual(clients[0].id, clients[1].id);
+    assert.equal(clientMeta.get(clients[0].type).networkType, 'ed2k');
+    assert.equal(clientMeta.get(clients[1].type).networkType, 'ed2k');
+  } finally {
+    restore();
+  }
+});
