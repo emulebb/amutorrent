@@ -107,6 +107,24 @@ class WebSocketHandlers extends BaseModule {
   }
 
   /**
+   * Resolve connected ED2K-capable managers, optionally constrained by instance.
+   * @param {string|null} instanceId - Preferred instance ID
+   * @returns {Object[]} Connected ED2K manager instances
+   */
+  _getConnectedEd2kManagers(instanceId) {
+    if (instanceId) {
+      const mgr = this._getEd2kManager(instanceId);
+      return mgr && mgr.isConnected?.() ? [mgr] : [];
+    }
+
+    const managers = [];
+    for (const type of clientMeta.getByNetworkType('ed2k')) {
+      managers.push(...registry.getByType(type).filter(mgr => mgr.isConnected?.()));
+    }
+    return managers;
+  }
+
+  /**
    * Parse cookies from cookie header
    * @param {string} cookieHeader - Cookie header string
    * @returns {Object} Parsed cookies as key-value pairs
@@ -448,9 +466,9 @@ class WebSocketHandlers extends BaseModule {
 
   async handleRefreshSharedFiles(data, context) {
     try {
-      const managers = registry.getByType('amule').filter(m => m.isConnected());
+      const managers = this._getConnectedEd2kManagers(data?.instanceId);
       if (managers.length === 0) {
-        context.send({ type: 'error', message: 'No aMule instance available' });
+        context.send({ type: 'error', message: 'No ED2K instance available' });
         return;
       }
       for (const mgr of managers) {
