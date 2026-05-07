@@ -63,6 +63,8 @@ class WebSocketHandlers extends BaseModule {
     // Track when the last aMule search was performed
     this.lastAmuleSearchTimestamp = 0;
     this.lastAmuleSearchInstanceId = null;
+    this.lastAmuleSearchMethod = null;
+    this.lastAmuleSearchType = null;
   }
 
   /**
@@ -386,7 +388,16 @@ class WebSocketHandlers extends BaseModule {
       // Track timestamp and instance for comparison with Prowlarr results
       this.lastAmuleSearchTimestamp = Date.now();
       this.lastAmuleSearchInstanceId = manager.instanceId;
-      context.broadcast({ type: 'search-results', data: result.results || [], instanceId: manager.instanceId }, searchFilter);
+      this.lastAmuleSearchMethod = result.searchMethod || null;
+      this.lastAmuleSearchType = data.type || result.searchType || null;
+      context.broadcast({
+        type: 'search-results',
+        data: result.results || [],
+        instanceId: manager.instanceId,
+        searchMethod: result.searchMethod || null,
+        searchType: data.type || result.searchType || null,
+        query: data.query || ''
+      }, searchFilter);
       context.log(`Search completed on ${manager.displayName}: ${result.resultsLength || 0} results found`);
     } catch (err) {
       context.error('Search error:', err);
@@ -405,10 +416,13 @@ class WebSocketHandlers extends BaseModule {
       // Get aMule cached results from the specified or last-searched instance
       const instanceId = data?.instanceId || this.lastAmuleSearchInstanceId;
       const manager = this._getEd2kManager(instanceId);
+      const requestedType = data?.type || data?.searchType || null;
       let amuleResults = [];
       try {
         if (manager) {
-          const result = await manager.getSearchResults();
+          const result = typeof manager.getCachedSearchResults === 'function'
+            ? manager.getCachedSearchResults({ type: requestedType })
+            : await manager.getSearchResults();
           amuleResults = result.results || [];
         }
       } catch (err) {
@@ -417,7 +431,9 @@ class WebSocketHandlers extends BaseModule {
       }
 
       // Compare timestamps and return the most recent
-      if (prowlarrCache.timestamp > this.lastAmuleSearchTimestamp && prowlarrCache.results.length > 0) {
+      const wantsProwlarr = requestedType === 'prowlarr';
+      const allowProwlarrFallback = !requestedType || wantsProwlarr;
+      if (allowProwlarrFallback && prowlarrCache.timestamp > this.lastAmuleSearchTimestamp && prowlarrCache.results.length > 0) {
         context.send({ type: 'previous-search-results', data: prowlarrCache.results });
         context.log(`Previous search results: ${prowlarrCache.results.length} Prowlarr results (more recent)`);
       } else {
@@ -1490,6 +1506,7 @@ class WebSocketHandlers extends BaseModule {
           const result = await manager.deleteItem(item.fileHash, opts);
 
           if (!result.success) {
+            context.error(`Delete failed for ${fileName || item.fileHash} on ${manager.displayName}: ${result.error || 'unknown error'}`);
             results.push({ fileHash: item.fileHash, fileName, success: false, error: result.error, instanceId, instanceName: manager.displayName });
             continue;
           }

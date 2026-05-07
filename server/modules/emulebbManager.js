@@ -48,14 +48,46 @@ function unwrapPayload(payload) {
   return payload;
 }
 
-function isOperationSuccess(payload) {
+function normalizeSearchRequest(type) {
+  const normalizedType = String(type || '').toLowerCase();
+  const methodAliases = {
+    automatic: 'automatic',
+    global: 'server',
+    server: 'server',
+    kad: 'kad'
+  };
+  const method = methodAliases[normalizedType] || 'automatic';
+  const fileType = Object.prototype.hasOwnProperty.call(methodAliases, normalizedType) || !normalizedType ? 'any' : normalizedType;
+  return {
+    requestedType: normalizedType || 'automatic',
+    method,
+    fileType
+  };
+}
+
+function hashMatches(payload, expectedHash) {
+  if (!expectedHash) return false;
+  const expected = String(expectedHash).toLowerCase();
+  const actual = String(payload.hash || payload.fileHash || payload.id || '').toLowerCase();
+  return actual === expected;
+}
+
+function isOperationSuccess(payload, { allowEmpty = false, expectedHash = null } = {}) {
   if (payload === true) return true;
   if (!payload || typeof payload !== 'object') return false;
-  if (payload.ok === true || payload.success === true || payload.deleted === true) return true;
-  if (['ok', 'success', 'deleted'].includes(String(payload.status || '').toLowerCase())) return true;
+  if (allowEmpty && Object.keys(payload).length === 0) return true;
+
+  const status = String(payload.status || '').toLowerCase();
+  if (payload.ok === false || payload.success === false || payload.deleted === false) return false;
+  if (payload.error) return false;
+  if (status && !['ok', 'success', 'deleted', 'removed'].includes(status)) return false;
+  if (payload.ok === true || payload.success === true || payload.deleted === true || payload.result === true) return true;
+  if (payload.deletedCount > 0 || payload.removedCount > 0) return true;
+  if (['ok', 'success', 'deleted', 'removed'].includes(status)) return true;
+  if (hashMatches(payload, expectedHash)) return true;
 
   const first = payload.items?.[0] ?? payload.results?.[0];
-  return first ? isOperationSuccess(first) : false;
+  return first ? isOperationSuccess(first, { allowEmpty, expectedHash }) : false;
 }
 
 function operationErrorMessage(payload, fallback) {
@@ -293,6 +325,7 @@ class EmulebbManager extends BaseClientManager {
     this.lastSnapshot = null;
     this.lastSearchId = null;
     this.lastSearchResults = [];
+    this.lastSearchMeta = null;
     this.searchInProgress = false;
     this._categories = [normalizeCategory({ id: 0, name: 'Default' })];
     const maps = buildCategoryMaps(this._categories);
@@ -515,14 +548,14 @@ class EmulebbManager extends BaseClientManager {
       const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}`, {
         deleteFiles: deleteFiles === true
       });
-      if (isOperationSuccess(payload)) return { success: true, pathsToDelete: [] };
+      if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) return { success: true, pathsToDelete: [] };
       return { success: false, error: operationErrorMessage(payload, 'eMule BB rejected the shared-file delete request') };
     }
 
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
       deleteFiles: deleteFiles !== false
     });
-    if (isOperationSuccess(payload)) {
+    if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
     }
@@ -692,15 +725,17 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async search(query, type, extension) {
-    const normalizedType = String(type || '').toLowerCase();
-    const methodAliases = {
-      automatic: 'automatic',
-      global: 'server',
-      server: 'server',
-      kad: 'kad'
+    const { requestedType, method, fileType } = normalizeSearchRequest(type);
+    this.lastSearchId = null;
+    this.lastSearchResults = [];
+    this.lastSearchMeta = {
+      id: null,
+      query: String(query || ''),
+      requestedType,
+      method,
+      fileType,
+      status: 'starting'
     };
-    const method = methodAliases[normalizedType] || 'automatic';
-    const fileType = Object.prototype.hasOwnProperty.call(methodAliases, normalizedType) || !normalizedType ? 'any' : normalizedType;
     const start = await this._request('POST', '/api/v1/searches', {
       query,
       method,
@@ -708,7 +743,12 @@ class EmulebbManager extends BaseClientManager {
       extension: extension || ''
     });
     this.lastSearchId = start.id || start.searchId;
-    if (!this.lastSearchId) return { results: [], resultsLength: 0, status: start.status || 'unknown' };
+    this.lastSearchMeta = {
+      ...this.lastSearchMeta,
+      id: this.lastSearchId,
+      status: start.status || 'running'
+    };
+    if (!this.lastSearchId) return this.getCachedSearchResults();
     return await this._pollSearchResults();
   }
 
@@ -723,7 +763,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async getSearchResults() {
-    if (!this.lastSearchId) return { results: [], resultsLength: 0 };
+    if (!this.lastSearchId) return this.getCachedSearchResults();
     const payload = await this._request('GET', `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}`);
     const results = (payload.results || []).map(item => ({
       fileHash: item.hash,
@@ -735,7 +775,40 @@ class EmulebbManager extends BaseClientManager {
       raw: item
     }));
     this.lastSearchResults = results;
-    return { results, resultsLength: results.length, status: payload.status };
+    this.lastSearchMeta = {
+      ...(this.lastSearchMeta || {}),
+      id: this.lastSearchId,
+      status: payload.status || this.lastSearchMeta?.status || 'unknown'
+    };
+    return this.getCachedSearchResults();
+  }
+
+  getCachedSearchResults({ type } = {}) {
+    const meta = this.lastSearchMeta || {};
+    if (type) {
+      const requested = normalizeSearchRequest(type);
+      if (meta.method && requested.method !== meta.method) {
+        return {
+          results: [],
+          resultsLength: 0,
+          status: meta.status || 'unknown',
+          searchId: meta.id || null,
+          searchMethod: meta.method || null,
+          searchType: meta.requestedType || null,
+          query: meta.query || null
+        };
+      }
+    }
+    const results = this.lastSearchResults || [];
+    return {
+      results,
+      resultsLength: results.length,
+      status: meta.status || 'unknown',
+      searchId: meta.id || null,
+      searchMethod: meta.method || null,
+      searchType: meta.requestedType || null,
+      query: meta.query || null
+    };
   }
 
   async addSearchResult(fileHash, categoryId = 0, username = null, fileInfoCallback = null) {

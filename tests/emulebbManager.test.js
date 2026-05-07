@@ -415,6 +415,12 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     if (method === 'DELETE' && url === '/api/v1/transfers/hash6') {
       return { body: { results: [{ hash: 'hash6', error: 'blocked' }] } };
     }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash7') {
+      return { body: {} };
+    }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash8') {
+      return { body: { hash: 'hash8' } };
+    }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port }) => {
     const manager = createManager(port);
@@ -428,6 +434,8 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     assert.deepEqual(await manager.deleteItem('hash4'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash5'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash6'), { success: false, error: 'blocked' });
+    assert.deepEqual(await manager.deleteItem('hash7'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash8'), { success: true, pathsToDelete: [] });
   });
 });
 
@@ -565,15 +573,52 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
     const kad = await manager.search('ubuntu', 'kad');
     assert.equal(kad.resultsLength, 1);
     assert.equal(kad.results[0].sourceCount, 5);
+    assert.equal(kad.searchMethod, 'kad');
 
     const typed = await manager.search('photo', 'image', 'jpg');
     assert.equal(typed.resultsLength, 1);
 
     const server = await manager.search('debian', 'server');
     assert.equal(server.resultsLength, 1);
+    assert.equal(server.searchMethod, 'server');
 
     const legacyGlobal = await manager.search('fedora', 'global');
     assert.equal(legacyGlobal.resultsLength, 1);
+  });
+});
+
+test('eMule BB manager keeps cached search results scoped to the requested method', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'POST' && url === '/api/v1/searches') {
+      if (body.method === 'kad') return { body: { id: '20', status: 'running' } };
+      if (body.method === 'server') return { body: { id: '21', status: 'running' } };
+    }
+    if (method === 'GET' && url === '/api/v1/searches/20') {
+      return {
+        body: {
+          status: 'complete',
+          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5 }]
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/searches/21') {
+      return { body: { status: 'complete', results: [] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const kad = await manager.search('rocco', 'kad');
+    assert.equal(kad.resultsLength, 1);
+    assert.equal(manager.getCachedSearchResults({ type: 'kad' }).resultsLength, 1);
+
+    const server = await manager.search('rocco', 'server');
+    assert.equal(server.resultsLength, 0);
+    assert.equal(server.searchMethod, 'server');
+    assert.equal(manager.getCachedSearchResults().resultsLength, 0);
+    assert.equal(manager.getCachedSearchResults({ type: 'server' }).resultsLength, 0);
+    assert.equal(manager.getCachedSearchResults({ type: 'kad' }).resultsLength, 0);
   });
 });
 

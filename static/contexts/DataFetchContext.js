@@ -76,8 +76,13 @@ export const DataFetchProvider = ({ children }) => {
     };
   }, []);
 
-  const fetchPreviousSearchResults = useCallback(async (instanceId) => {
-    sendMessage({ action: 'getPreviousSearchResults', ...(instanceId && { instanceId }) });
+  const fetchPreviousSearchResults = useCallback(async (instanceId, options = {}) => {
+    const { type } = options;
+    sendMessage({
+      action: 'getPreviousSearchResults',
+      ...(instanceId && { instanceId }),
+      ...(type && { type })
+    });
   }, [sendMessage]);
 
   const refreshSharedFiles = useCallback(async () => {
