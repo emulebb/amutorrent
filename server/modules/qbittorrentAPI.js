@@ -170,24 +170,24 @@ class QBittorrentAPI extends BaseModule {
    */
   updateHandler() {
     if (this.hashStore) {
-      const resolveAmuleManager = () => {
+      const resolveEd2kManager = () => {
         const configuredId = config.getConfig()?.integrations?.amuleInstanceId;
         let amuleMgr;
         if (configuredId) {
           amuleMgr = registry.get(configuredId);
           if (!amuleMgr) {
-            amuleMgr = registry.getByType('amule').find(m => m.isConnected());
-            if (amuleMgr) this.warn(`⚠️ [QBittorrentAPI.getAmuleClient] Configured amuleInstanceId "${configuredId}" not found, falling back to "${amuleMgr.instanceId}"`);
+            amuleMgr = [...registry.getByType('amule'), ...registry.getByType('emulebb')].find(m => m.isConnected());
+            if (amuleMgr) this.warn(`⚠️ [QBittorrentAPI] Configured ED2K instance "${configuredId}" not found, falling back to "${amuleMgr.instanceId}"`);
           }
         } else {
-          amuleMgr = registry.getByType('amule').find(m => m.isConnected());
+          amuleMgr = [...registry.getByType('amule'), ...registry.getByType('emulebb')].find(m => m.isConnected());
         }
         return amuleMgr;
       };
 
       this.handler.setDependencies({
-        getAmuleClient: () => resolveAmuleManager()?.getClient() || null,
-        getAmuleInstanceId: () => resolveAmuleManager()?.instanceId || null,
+        getAmuleClient: () => resolveEd2kManager()?.getClient() || null,
+        getAmuleInstanceId: () => resolveEd2kManager()?.instanceId || null,
         hashStore: this.hashStore,
         config: config,
         registry: registry,
