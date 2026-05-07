@@ -42,6 +42,32 @@ class AutoRefreshManager extends BaseModule {
     return this._cachedBatchUpdate;
   }
 
+  /**
+   * Replace cached snapshot items after an explicit user mutation refresh.
+   * Mutation handlers already fetch fresh unified items for immediate UI
+   * feedback; keeping the REST snapshot cache in sync prevents deleted rows
+   * from reappearing until the next timed auto-refresh cycle.
+   *
+   * @param {Array} items - Stripped unified items ready for snapshot consumers
+   * @param {Object} [metadata] - Optional categories/path warning metadata
+   * @returns {boolean} True when an existing cache entry was updated
+   */
+  updateCachedBatchItems(items, metadata = {}) {
+    if (!this._cachedBatchUpdate?.data) return false;
+    const data = {
+      ...this._cachedBatchUpdate.data,
+      items: Array.isArray(items) ? items : []
+    };
+    if (Array.isArray(metadata.categories)) data.categories = metadata.categories;
+    if (metadata.clientDefaultPaths !== undefined) data.clientDefaultPaths = metadata.clientDefaultPaths;
+    if (metadata.hasPathWarnings !== undefined) data.hasPathWarnings = metadata.hasPathWarnings;
+    this._cachedBatchUpdate = {
+      ...this._cachedBatchUpdate,
+      data
+    };
+    return true;
+  }
+
   // Auto-refresh loop
   async autoRefreshLoop() {
     const connectedManagers = registry.getConnected();
