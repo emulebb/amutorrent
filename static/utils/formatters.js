@@ -38,6 +38,24 @@ export const formatSpeed = (speed) => {
 };
 
 /**
+ * Clamp a progress value to the display range used by progress bars.
+ * @param {number|string} value - Percent value in the 0-100 range
+ * @returns {number} Clamped percent value
+ */
+export const clampProgressPercent = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, number));
+};
+
+/**
+ * Format a percent value for progress UI.
+ * @param {number|string} value - Percent value in the 0-100 range
+ * @returns {string} Fixed two-decimal percentage string
+ */
+export const formatProgressPercent = (value) => `${clampProgressPercent(value).toFixed(2)}%`;
+
+/**
  * Format statistics value for display
  * @param {*} value - Value to format (can be object, array, string, number, etc.)
  * @returns {string} Formatted string

@@ -49,7 +49,8 @@ export const PROGRESS_STRIPES_STYLE = {
 
 // Search types
 export const SEARCH_TYPES = {
-  GLOBAL: 'global',
+  SERVER: 'server',
+  GLOBAL: 'server',
   LOCAL: 'local',
   KAD: 'kad',
   PROWLARR: 'prowlarr'

@@ -48,6 +48,14 @@ const findWorstStatus = (statusObjs) => {
   );
 };
 
+const normalizeNetworkStatus = (statusObj, fallback) => ({
+  ...fallback,
+  ...(statusObj || {}),
+  status: statusObj?.status || fallback.status,
+  text: statusObj?.text || fallback.text,
+  connected: statusObj?.connected === true
+});
+
 /**
  * Render a status badge, optionally wrapped in a Tooltip
  */
@@ -80,30 +88,29 @@ const Footer = ({ currentView, onOpenAbout }) => {
   let ed2kTooltip = null, kadTooltip = null;
   const disconnected = { status: 'red', text: 'Disconnected', connected: false };
 
-  // Group connected instances by type (dynamic — works for any client type)
-  const byType = {};
+  // Group connected instances by network/type.
+  const statusInstances = [];
   for (const [id, inst] of Object.entries(instances)) {
     if (!inst.connected) continue;
-    if (!byType[inst.type]) byType[inst.type] = [];
-    byType[inst.type].push({ id, ...inst });
+    const fullInst = { id, ...inst };
+    statusInstances.push(fullInst);
   }
 
-  // aMule: worst ED2K and KAD status across instances
-  const amuleInsts = byType.amule || [];
-  if (amuleInsts.length > 0) {
-    const ed2kStatuses = amuleInsts.map(i => i.networkStatus?.ed2k).filter(Boolean);
-    const kadStatuses = amuleInsts.map(i => i.networkStatus?.kad).filter(Boolean);
+  // ED2K-family clients: worst ED2K and KAD status across instances.
+  const ed2kInsts = statusInstances.filter(inst => inst.networkType === 'ed2k' || inst.type === 'amule' || inst.type === 'emulebb');
+  if (ed2kInsts.length > 0) {
+    const ed2kStatuses = ed2kInsts.map(i => normalizeNetworkStatus(i.networkStatus?.ed2k, disconnected));
+    const kadStatuses = ed2kInsts.map(i => normalizeNetworkStatus(i.networkStatus?.kad, disconnected));
 
     ed2k = findWorstStatus(ed2kStatuses) || disconnected;
     kad = findWorstStatus(kadStatuses) || disconnected;
 
-    // Multi-instance tooltips (only when 2+ aMule instances)
-    if (amuleInsts.length > 1) {
+    // Multi-instance tooltips (only when 2+ ED2K instances)
+    if (ed2kInsts.length > 1) {
       ed2kTooltip = h('div', { className: 'space-y-1' },
         h('div', { className: 'font-semibold mb-1' }, 'ED2K Status'),
-        ...amuleInsts.map(inst => {
-          const ns = inst.networkStatus?.ed2k;
-          if (!ns) return null;
+        ...ed2kInsts.map(inst => {
+          const ns = normalizeNetworkStatus(inst.networkStatus?.ed2k, disconnected);
           const detail = ns.connected && ns.serverName
             ? ` (${ns.serverName}${ns.serverPing ? ` - ${ns.serverPing}ms` : ''})`
             : '';
@@ -117,15 +124,14 @@ const Footer = ({ currentView, onOpenAbout }) => {
 
       kadTooltip = h('div', { className: 'space-y-1' },
         h('div', { className: 'font-semibold mb-1' }, 'KAD Status'),
-        ...amuleInsts.map(inst => {
-          const ns = inst.networkStatus?.kad;
-          if (!ns) return null;
-          const portDetail = ns.connected && (ns.listenPort || ns.tcpPort)
-            ? ` (UDP ${ns.listenPort || '?'}: ${ns.firewalledUdp ? 'Firewalled' : 'OK'} · TCP ${ns.tcpPort || '?'}: ${ns.firewalledTcp ? 'Firewalled' : 'OK'})`
-            : '';
+        ...ed2kInsts.map(inst => {
+          const ns = normalizeNetworkStatus(inst.networkStatus?.kad, disconnected);
           return h('div', { key: inst.id, className: 'flex items-center gap-2' },
             h('div', { className: `w-2 h-2 rounded-full flex-shrink-0 ${getStatusDotClass(ns.status)}` }),
-            h('span', null, `${inst.name}: ${ns.text}${portDetail}`)
+            h('div', null,
+              h('div', null, `${inst.name}: ${ns.text}`),
+              buildKadTooltip(ns)
+            )
           );
         }).filter(Boolean)
       );
@@ -136,11 +142,11 @@ const Footer = ({ currentView, onOpenAbout }) => {
   }
 
   // BitTorrent clients: compute worst status per type (dynamic — works for rtorrent, qbittorrent, deluge, etc.)
-  const btTypes = Object.keys(byType).filter(t => t !== 'amule').sort();
+  const btTypes = [...new Set(statusInstances.filter(inst => inst.networkType === 'bittorrent').map(inst => inst.type))].sort();
   const btStatusMap = {};  // { type: { status, tooltip } }
   for (const type of btTypes) {
-    const insts = byType[type];
-    const statuses = insts.map(i => i.networkStatus).filter(Boolean);
+    const insts = statusInstances.filter(inst => inst.networkType === 'bittorrent' && inst.type === type);
+    const statuses = insts.map(i => normalizeNetworkStatus(i.networkStatus, disconnected));
     const worst = findWorstStatus(statuses) || disconnected;
     let tooltip = null;
     if (insts.length > 1) {
@@ -148,8 +154,7 @@ const Footer = ({ currentView, onOpenAbout }) => {
       tooltip = h('div', { className: 'space-y-1' },
         h('div', { className: 'font-semibold mb-1' }, `${label} Status`),
         ...insts.map(inst => {
-          const ns = inst.networkStatus;
-          if (!ns) return null;
+          const ns = normalizeNetworkStatus(inst.networkStatus, disconnected);
           return h('div', { key: inst.id, className: 'flex items-center gap-2' },
             h('div', { className: `w-2 h-2 rounded-full flex-shrink-0 ${getStatusDotClass(ns.status)}` }),
             h('span', null, `${inst.name}: ${ns.text}${ns.listenPort ? ` (Port ${ns.listenPort})` : ''}`)

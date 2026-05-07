@@ -13,6 +13,8 @@ export {
   formatTimeAgo,
   formatETA,
   formatETASeconds,
+  clampProgressPercent,
+  formatProgressPercent,
   formatLastSeenComplete,
   getTimeBasedColor,
   ipToString,

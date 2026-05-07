@@ -79,6 +79,35 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   });
 });
 
+test('eMule BB manager normalizes native REST network status', () => {
+  const manager = new EmulebbManager();
+  const status = manager.getNetworkStatus({
+    server: {
+      connected: true,
+      active: { name: 'Peerates', address: '1.2.3.4', port: 4661 }
+    },
+    kad: {
+      running: true,
+      connected: true,
+      firewalled: false
+    }
+  });
+
+  assert.deepEqual(status.ed2k, {
+    status: 'green',
+    text: 'Connected',
+    connected: true,
+    serverName: 'Peerates',
+    serverPing: null,
+    serverAddress: '1.2.3.4'
+  });
+  assert.deepEqual(status.kad, {
+    status: 'green',
+    text: 'OK',
+    connected: true
+  });
+});
+
 test('eMule BB manager unwraps native v1 success and error envelopes', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
@@ -374,6 +403,18 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     if (method === 'DELETE' && url === '/api/v1/transfers/hash2') {
       return { body: { results: [{ hash: 'hash2', ok: true }] } };
     }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash3') {
+      return { body: { success: true } };
+    }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash4') {
+      return { body: { status: 'deleted' } };
+    }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash5') {
+      return { body: { items: [{ hash: 'hash5', success: true }] } };
+    }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash6') {
+      return { body: { results: [{ hash: 'hash6', error: 'blocked' }] } };
+    }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port }) => {
     const manager = createManager(port);
@@ -383,6 +424,10 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
     assert.deepEqual(await manager.setCategoryOrLabel('hash1', { categoryName: 'Linux' }), { success: true });
     assert.deepEqual(await manager.deleteItem('hash1'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash2'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash3'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash4'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash5'), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash6'), { success: false, error: 'blocked' });
   });
 });
 
@@ -494,12 +539,17 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
     if (method === 'POST' && url === '/api/v1/searches') {
       if (body.query === 'ubuntu') {
         assert.deepEqual(body, { query: 'ubuntu', method: 'kad', type: 'any', extension: '' });
+      } else if (body.query === 'debian') {
+        assert.deepEqual(body, { query: 'debian', method: 'server', type: 'any', extension: '' });
+      } else if (body.query === 'fedora') {
+        assert.deepEqual(body, { query: 'fedora', method: 'server', type: 'any', extension: '' });
       } else {
         assert.deepEqual(body, { query: 'photo', method: 'automatic', type: 'image', extension: 'jpg' });
       }
-      return { body: { id: body.query === 'ubuntu' ? '10' : '11', status: 'running', results: [] } };
+      const ids = { ubuntu: '10', photo: '11', debian: '12', fedora: '13' };
+      return { body: { id: ids[body.query], status: 'running', results: [] } };
     }
-    if (method === 'GET' && (url === '/api/v1/searches/10' || url === '/api/v1/searches/11')) {
+    if (method === 'GET' && (url === '/api/v1/searches/10' || url === '/api/v1/searches/11' || url === '/api/v1/searches/12' || url === '/api/v1/searches/13')) {
       return {
         body: {
           status: 'complete',
@@ -518,6 +568,12 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
 
     const typed = await manager.search('photo', 'image', 'jpg');
     assert.equal(typed.resultsLength, 1);
+
+    const server = await manager.search('debian', 'server');
+    assert.equal(server.resultsLength, 1);
+
+    const legacyGlobal = await manager.search('fedora', 'global');
+    assert.equal(legacyGlobal.resultsLength, 1);
   });
 });
 

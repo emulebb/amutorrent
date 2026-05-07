@@ -48,6 +48,21 @@ function unwrapPayload(payload) {
   return payload;
 }
 
+function isOperationSuccess(payload) {
+  if (payload === true) return true;
+  if (!payload || typeof payload !== 'object') return false;
+  if (payload.ok === true || payload.success === true || payload.deleted === true) return true;
+  if (['ok', 'success', 'deleted'].includes(String(payload.status || '').toLowerCase())) return true;
+
+  const first = payload.items?.[0] ?? payload.results?.[0];
+  return first ? isOperationSuccess(first) : false;
+}
+
+function operationErrorMessage(payload, fallback) {
+  const first = payload?.items?.[0] ?? payload?.results?.[0];
+  return first?.error || payload?.error || payload?.message || fallback;
+}
+
 function normalizeErrorPayload(payload, statusCode, text) {
   if (payload?.error && typeof payload.error === 'object') {
     return {
@@ -450,16 +465,19 @@ class EmulebbManager extends BaseClientManager {
 
   getNetworkStatus(rawStats) {
     const stats = rawStats?.stats || {};
-    const servers = rawStats?.servers || {};
+    const serverStatus = rawStats?.server || rawStats?.servers || {};
+    const activeServer = serverStatus.active || serverStatus.currentServer || {};
     const kadStatus = rawStats?.kad || {};
-    const ed2k = servers.connected
+    const serverConnected = serverStatus.connected === true || activeServer.connected === true;
+    const highId = rawStats?.ed2kHighId ?? stats.ed2kHighId;
+    const ed2k = serverConnected
       ? {
-          status: stats.ed2kHighId ? 'green' : 'yellow',
-          text: stats.ed2kHighId ? 'High ID' : 'Low ID',
+          status: highId === false ? 'yellow' : 'green',
+          text: highId === true ? 'High ID' : highId === false ? 'Low ID' : 'Connected',
           connected: true,
-          serverName: servers.currentServer?.name || null,
-          serverPing: servers.currentServer?.ping || null,
-          serverAddress: servers.currentServer?.address || null
+          serverName: activeServer.name || null,
+          serverPing: activeServer.ping || null,
+          serverAddress: activeServer.address || null
         }
       : { status: 'red', text: 'Disconnected', connected: false, serverName: null, serverPing: null, serverAddress: null };
     const kad = kadStatus.connected
@@ -497,19 +515,18 @@ class EmulebbManager extends BaseClientManager {
       const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}`, {
         deleteFiles: deleteFiles === true
       });
-      if (payload?.ok === true) return { success: true, pathsToDelete: [] };
-      return { success: false, error: 'eMule BB rejected the shared-file delete request' };
+      if (isOperationSuccess(payload)) return { success: true, pathsToDelete: [] };
+      return { success: false, error: operationErrorMessage(payload, 'eMule BB rejected the shared-file delete request') };
     }
 
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
       deleteFiles: deleteFiles !== false
     });
-    const first = payload?.items?.[0] ?? payload?.results?.[0];
-    if (payload?.ok === true || first?.ok) {
+    if (isOperationSuccess(payload)) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
     }
-    return { success: false, error: first?.error || 'eMule BB rejected the delete request' };
+    return { success: false, error: operationErrorMessage(payload, 'eMule BB rejected the delete request') };
   }
 
   /**
@@ -676,9 +693,14 @@ class EmulebbManager extends BaseClientManager {
 
   async search(query, type, extension) {
     const normalizedType = String(type || '').toLowerCase();
-    const allowedMethods = new Set(['automatic', 'server', 'global', 'kad']);
-    const method = allowedMethods.has(normalizedType) ? normalizedType : 'automatic';
-    const fileType = allowedMethods.has(normalizedType) || !normalizedType ? 'any' : normalizedType;
+    const methodAliases = {
+      automatic: 'automatic',
+      global: 'server',
+      server: 'server',
+      kad: 'kad'
+    };
+    const method = methodAliases[normalizedType] || 'automatic';
+    const fileType = Object.prototype.hasOwnProperty.call(methodAliases, normalizedType) || !normalizedType ? 'any' : normalizedType;
     const start = await this._request('POST', '/api/v1/searches', {
       query,
       method,

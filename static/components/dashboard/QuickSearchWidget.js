@@ -12,7 +12,7 @@ const { createElement: h } = React;
 
 /**
  * QuickSearchWidget component
- * @param {string} searchType - Current search type ('global', 'local', 'kad')
+ * @param {string} searchType - Current search type ('server', 'local', 'kad')
  * @param {function} onSearchTypeChange - Search type change handler
  * @param {string} searchQuery - Current search query
  * @param {function} onSearchQueryChange - Search query change handler
@@ -54,7 +54,7 @@ const QuickSearchWidget = ({
   // - ED2K and Kad require aMule to be connected
   // - Prowlarr requires prowlarr enabled AND any BitTorrent client connected
   const searchTypes = [
-    { value: 'global', label: 'ED2K Server', icon: '/static/logo-brax.png', disabled: !amuleConnected },
+    { value: 'server', label: 'ED2K Server', icon: '/static/logo-brax.png', disabled: !amuleConnected },
     // { value: 'local', label: 'Local', icon: '/static/logo-brax.png', disabled: !amuleConnected }, // Hidden temporarily
     { value: 'kad', label: 'Kad', icon: '/static/logo-brax.png', disabled: !amuleConnected },
     { value: 'prowlarr', label: 'Prowlarr', icon: '/static/prowlarr.svg', disabled: !prowlarrEnabled || !bittorrentConnected }
@@ -114,8 +114,8 @@ const QuickSearchWidget = ({
           className: 'flex-1 min-w-0'
         }),
 
-        // Instance selector (only when multi-aMule + ED2K/Kad type)
-        (searchType === 'global' || searchType === 'kad') && h(AmuleInstanceSelector, {
+        // Instance selector (only when multi-instance ED2K/Kad search is active)
+        (searchType === 'server' || searchType === 'global' || searchType === 'kad') && h(AmuleInstanceSelector, {
           connectedInstances: amuleInstances,
           selectedId: searchInstanceId,
           onSelect: onSearchInstanceChange,

@@ -23,7 +23,7 @@ const SearchResultsView = () => {
   const { instances, hasMultiInstance } = useStaticData();
 
   // Instance badge for multi-instance ED2K/Kad searches
-  const isAmuleSearch = searchType === 'global' || searchType === 'kad';
+  const isAmuleSearch = searchType === 'server' || searchType === 'global' || searchType === 'kad';
   const instanceInfo = isAmuleSearch && hasMultiInstance && searchInstanceId && instances?.[searchInstanceId];
   const instanceName = instanceInfo ? (instanceInfo.name || searchInstanceId) : null;
 

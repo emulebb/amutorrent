@@ -15,7 +15,7 @@ import React from 'https://esm.sh/react@18.2.0';
 import Icon from './Icon.js';
 import SegmentsBar from './SegmentsBar.js';
 import Tooltip from './Tooltip.js';
-import { formatBytes, formatETASeconds, getStatusBarColor, getItemStatusInfo, STATUS_DISPLAY_MAP, PROGRESS_STRIPES_STYLE } from '../../utils/index.js';
+import { formatBytes, formatETASeconds, clampProgressPercent, formatProgressPercent, getStatusBarColor, getItemStatusInfo, STATUS_DISPLAY_MAP, PROGRESS_STRIPES_STYLE } from '../../utils/index.js';
 
 const { createElement: h, useState, useCallback, useMemo } = React;
 
@@ -64,7 +64,8 @@ const ProgressBar = ({ item, theme, variant = 'mobile' }) => {
   }, []);
 
   // Progress text varies by variant
-  const progress = item.progress || 0;
+  const progress = clampProgressPercent(item.progress);
+  const progressDisplay = formatProgressPercent(progress);
   const statusLabel = display.label || 'Active';
 
   // Use pre-calculated ETA from server (in seconds), format for display
@@ -74,15 +75,15 @@ const ProgressBar = ({ item, theme, variant = 'mobile' }) => {
 
   let progressText;
   if (variant === 'desktop') {
-    progressText = `${progress}%`;
+    progressText = progressDisplay;
   } else {
     if (progress >= 100) {
       progressText = `${statusLabel} · ${formatBytes(item.size)}`;
     } else {
       const sizeLeft = formatBytes(remainingBytes);
       progressText = eta
-        ? `${statusLabel} · ${progress}% · ${sizeLeft} left · ${eta}`
-        : `${statusLabel} · ${progress}% · ${sizeLeft} left`;
+        ? `${statusLabel} · ${progressDisplay} · ${sizeLeft} left · ${eta}`
+        : `${statusLabel} · ${progressDisplay} · ${sizeLeft} left`;
     }
   }
 

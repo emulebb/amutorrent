@@ -6,7 +6,7 @@
  */
 
 import React from 'https://esm.sh/react@18.2.0';
-import { formatBytes, formatSpeed } from './index.js';
+import { formatBytes, formatProgressPercent, formatSpeed } from './index.js';
 import { AMULE_STATUS, RTORRENT_STATE_LABELS, QBITTORRENT_STATE_LABELS } from './constants.js';
 import {
   FIELD_LABELS, FIELD_TYPES, SKIP_FIELDS, FIELD_CATEGORIES,
@@ -291,10 +291,11 @@ const SPECIAL_FORMATTERS = {
     }
     return undefined; // fall through to default
   },
-  // rtorrent progress (0-1 → percentage)
+  // BitTorrent clients report progress as a ratio; unified ED2K rows use percent.
   'progress': (value) => {
     if (typeof value !== 'number') return undefined;
-    return h('span', { className: 'font-mono' }, `${(value * 100).toFixed(2)}%`);
+    const percent = value <= 1 ? value * 100 : value;
+    return h('span', { className: 'font-mono' }, formatProgressPercent(percent));
   },
   // Transmission fields
   'bandwidthPriority': (value) =>

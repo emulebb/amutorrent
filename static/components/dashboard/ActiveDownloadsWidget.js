@@ -7,7 +7,7 @@
 
 import React from 'https://esm.sh/react@18.2.0';
 import { getCategoryColorStyle, getProgressColor } from '../../utils/colors.js';
-import { formatSpeed } from '../../utils/formatters.js';
+import { clampProgressPercent, formatProgressPercent, formatSpeed } from '../../utils/formatters.js';
 import { PROGRESS_STRIPES_STYLE } from '../../utils/constants.js';
 import { isBittorrentClient } from '../../utils/downloadHelpers.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
@@ -70,7 +70,7 @@ const ActiveDownloadsWidget = ({ downloads = [], maxItems = 10, compact = false,
             const categoryStyle = getCategoryColorStyle(category, isDefault);
 
             // Ensure progress is a number
-            const progress = Number(download.progress) || 0;
+            const progress = clampProgressPercent(download.progress);
 
             // Count active peers/sources we're downloading from
             // BitTorrent: count peers with active download rate
@@ -155,7 +155,7 @@ const ActiveDownloadsWidget = ({ downloads = [], maxItems = 10, compact = false,
                     textShadow: isDark ? '0 0 1px black, 0 0 1px black' : '0 0 1px white, 0 0 1px white',
                     paintOrder: 'stroke fill'
                   }
-                }, `${progress.toFixed(2)}%`)
+                }, formatProgressPercent(progress))
               )
             );
           })

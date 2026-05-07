@@ -17,7 +17,7 @@ const SearchContext = createContext(null);
  */
 const useSearchState = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState('global');
+  const [searchType, setSearchType] = useState('server');
   const [searchLocked, setSearchLocked] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searchPreviousResults, setSearchPreviousResults] = useState([]);
