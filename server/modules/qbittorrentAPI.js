@@ -175,12 +175,15 @@ class QBittorrentAPI extends BaseModule {
         let amuleMgr;
         if (configuredId) {
           amuleMgr = registry.get(configuredId);
+          if (amuleMgr?.clientType !== 'amule') {
+            amuleMgr = null;
+          }
           if (!amuleMgr) {
-            amuleMgr = [...registry.getByType('amule'), ...registry.getByType('emulebb')].find(m => m.isConnected());
+            amuleMgr = registry.getByType('amule').find(m => m.isConnected());
             if (amuleMgr) this.warn(`⚠️ [QBittorrentAPI] Configured ED2K instance "${configuredId}" not found, falling back to "${amuleMgr.instanceId}"`);
           }
         } else {
-          amuleMgr = [...registry.getByType('amule'), ...registry.getByType('emulebb')].find(m => m.isConnected());
+          amuleMgr = registry.getByType('amule').find(m => m.isConnected());
         }
         return amuleMgr;
       };
