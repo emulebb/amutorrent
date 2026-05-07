@@ -18,6 +18,7 @@ const categoryManager = require('../lib/CategoryManager');
 const { requireCapability } = require('../middleware/capabilities');
 
 let webSocketHandlers = null;
+const NON_BLOCKING_SEARCH_PROBE_MS = 750;
 
 /**
  * Create a mock WS context for HTTP requests.
@@ -116,9 +117,10 @@ async function bridge(method, req, res, extraData = {}) {
 
   // Timeout covers the entire handler execution — if it hangs, the HTTP request won't block forever
   const timeoutMs = method === 'handleSearch' ? 130000 : 30000;
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Handler ${method} timed out after ${timeoutMs / 1000}s`)), timeoutMs)
-  );
+  const timeout = new Promise((_, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Handler ${method} timed out after ${timeoutMs / 1000}s`)), timeoutMs);
+    if (typeof timer.unref === 'function') timer.unref();
+  });
 
   try {
     await Promise.race([
@@ -146,6 +148,45 @@ async function bridge(method, req, res, extraData = {}) {
     logger.error(`[REST API] ${method} error:`, err.message);
     res.status(500).json({ success: false, error: err.message });
   }
+}
+
+function createCaptureResponse() {
+  const capture = {
+    statusCode: 200,
+    payload: undefined,
+    resolved: false
+  };
+  const writeJson = (payload) => {
+    capture.payload = payload;
+    capture.resolved = true;
+    return capture;
+  };
+  return {
+    capture,
+    res: {
+      json: writeJson,
+      status: (code) => {
+        capture.statusCode = code;
+        return { json: writeJson };
+      }
+    }
+  };
+}
+
+function isErrorPayload(payload) {
+  return payload && typeof payload === 'object' && payload.type === 'error';
+}
+
+async function probeNonBlockingBridge(method, req, timeoutMs = NON_BLOCKING_SEARCH_PROBE_MS) {
+  const { capture, res } = createCaptureResponse();
+  const work = bridge(method, req, res).catch(err => {
+    logger.error(`[REST API] non-blocking ${method} probe error:`, err.message);
+  });
+  await Promise.race([
+    work,
+    new Promise(resolve => setTimeout(resolve, timeoutMs))
+  ]);
+  return capture.resolved ? capture : null;
 }
 
 /**
@@ -255,17 +296,19 @@ function registerRoutes(app) {
   // SEARCH (ED2K)
   // ============================================================================
 
-  router.post('/search', requireCapability('search'), (req, res) => {
+  router.post('/search', requireCapability('search'), async (req, res) => {
     const wait = req.body.wait !== false && req.query.wait !== 'false';
     if (wait) {
       // Blocking: wait for search to complete (up to 120s)
       bridge('handleSearch', req, res);
     } else {
-      // Non-blocking: start search in background, return immediately
-      // Results can be polled via GET /api/v1/search/results
-      const noopRes = { json: () => {}, status: () => ({ json: () => {} }) };
-      bridge('handleSearch', req, noopRes);
-      res.json({ type: 'search-started', message: 'Search started. Poll GET /api/v1/search/results for results.' });
+      // Non-blocking: catch immediate validation/backend failures, then let
+      // longer searches finish in the background.
+      const immediate = await probeNonBlockingBridge('handleSearch', req);
+      if (immediate && (immediate.statusCode >= 400 || isErrorPayload(immediate.payload))) {
+        return res.status(immediate.statusCode >= 400 ? immediate.statusCode : 409).json(immediate.payload);
+      }
+      res.status(202).json({ type: 'search-started', message: 'Search started. Poll GET /api/v1/search/results for results.' });
     }
   });
 
@@ -332,4 +375,12 @@ function setHandlers(handlers) {
   webSocketHandlers = handlers;
 }
 
-module.exports = { registerRoutes, setHandlers };
+module.exports = {
+  registerRoutes,
+  setHandlers,
+  _test: {
+    createCaptureResponse,
+    isErrorPayload,
+    probeNonBlockingBridge
+  }
+};
