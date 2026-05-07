@@ -103,8 +103,7 @@ test('qBittorrent add uses the shared ED2K manager contract', async () => {
   ]);
   assert.equal(mappings.length, 1);
 });
-
-test('qBittorrent category init ignores eMuleBB-only registry', () => {
+test('qBittorrent category init waits for eMuleBB-only registry', () => {
   const handler = new QBittorrentHandler();
   handler.setDependencies({
     getEd2kManager: () => null,
@@ -119,5 +118,5 @@ test('qBittorrent category init ignores eMuleBB-only registry', () => {
     userManager: null
   });
 
-  assert.equal(handler.categoryCacheInitialized, true);
+  assert.equal(handler.categoryCacheInitialized, false);
 });
