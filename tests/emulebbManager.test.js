@@ -58,7 +58,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
     if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
       return {
         body: {
-          transfers: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'movie.mkv', sizeBytes: 100, completedBytes: 25, progress: 0.25, categoryId: 2 }],
+          transfers: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'movie.mkv', sizeBytes: 100, completedBytes: 25, progress: 0.3333333333333333, categoryId: 2 }],
           sharedFiles: [],
           uploads: []
         }
@@ -74,7 +74,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
     assert.equal(data.downloads[0].hash, 'abcdefabcdefabcdefabcdefabcdefab');
     assert.equal(data.downloads[0].category, 'Movies');
     assert.equal(data.downloads[0].categoryId, 2);
-    assert.equal(data.downloads[0].progress, 25);
+    assert.equal(data.downloads[0].progress, 33.33);
     assert.equal(data.downloads[0].renameSupported, true);
   });
 });
@@ -315,6 +315,8 @@ test('eMule BB manager normalizes shared metadata and updates rating/comment', a
     assert.equal(data.sharedFiles[0].rating, 4);
     assert.equal(data.sharedFiles[0].hasComment, true);
     assert.equal(data.sharedFiles[0].renameSupported, false);
+    assert.equal(data.sharedFiles[0].progress, 100);
+    assert.equal(data.sharedFiles[0].status, 'completed');
 
     assert.deepEqual(
       await manager.setFileRatingComment('abcdefabcdefabcdefabcdefabcdefab', 'better', 5),

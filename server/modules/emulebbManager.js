@@ -165,6 +165,12 @@ function computePartCompletion(availableParts, partCount) {
   return Math.max(0, Math.min(100, Math.round((availableParts * 100) / partCount)));
 }
 
+function normalizeProgressPercent(value) {
+  const raw = parseFiniteNumber(value, 0);
+  const percent = raw <= 1 ? raw * 100 : raw;
+  return Math.max(0, Math.min(100, Math.round(percent * 100) / 100));
+}
+
 function normalizeTransfer(file, instanceId, categoryById = new Map()) {
   const hash = String(file.hash || '').toLowerCase();
   const categoryId = Number.isInteger(file.categoryId) ? file.categoryId : Number.parseInt(file.categoryId, 10);
@@ -184,7 +190,7 @@ function normalizeTransfer(file, instanceId, categoryById = new Map()) {
     categoryName,
     renameSupported: true,
     ed2kLink: makeEd2kLink(file),
-    progress: file.progress <= 1 ? (file.progress || 0) * 100 : (file.progress || 0),
+    progress: normalizeProgressPercent(file.progress),
     speed: kibPerSecondToBytesPerSecond(file.downloadSpeedKiBps ?? file.downloadSpeed),
     status: file.state || 'queued',
     statusText: file.state || 'queued',
@@ -269,7 +275,9 @@ function normalizeSharedFile(file, instanceId) {
     rawName: file.name || 'Unknown',
     size,
     downloaded: size,
-    progress: 1,
+    progress: 100,
+    status: 'completed',
+    statusText: 'completed',
     priority: file.priority || file.uploadPriority || null,
     ed2kLink: makeEd2kLink(file),
     renameSupported: false,
