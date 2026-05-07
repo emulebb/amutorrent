@@ -560,7 +560,7 @@ class EmulebbManager extends BaseClientManager {
     }
 
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
-      deleteFiles: deleteFiles !== false
+      deleteFiles: true
     });
     if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);
