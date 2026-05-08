@@ -264,6 +264,10 @@ function normalizeTransferPart(part) {
   };
 }
 
+function hasCapability(version, capability) {
+  return version?.capabilities?.[capability] === true;
+}
+
 function normalizeSharedFile(file, instanceId) {
   const hash = String(file.hash || '').toLowerCase();
   const size = file.sizeBytes ?? file.size ?? 0;
@@ -455,11 +459,15 @@ class EmulebbManager extends BaseClientManager {
       const transferringCount = parseFiniteNumber(transferRows[index]?.sourcesTransferring ?? download.sourceCountXfer, 0);
       if (!download.hash) return;
       try {
-        const details = await this._getTransferDetails(download.hash, download);
-        download.peers = details.sources;
-        download.partStatus = details.parts;
-        download.gapStatus = details.gaps;
-        download.reqStatus = details.requests;
+        if (hasCapability(this.client?.version, 'transferDetails')) {
+          const details = await this._getTransferDetails(download.hash, download);
+          download.peers = details.sources;
+          download.partStatus = details.parts;
+          download.gapStatus = details.gaps;
+          download.reqStatus = details.requests;
+        } else if (sourceCount > 0 || transferringCount > 0) {
+          download.peers = await this._getTransferSources(download.hash, download);
+        }
       } catch (err) {
         if (sourceCount > 0 || transferringCount > 0) {
           try {

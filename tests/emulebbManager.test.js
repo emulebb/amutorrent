@@ -176,7 +176,7 @@ test('eMule BB manager hydrates transfer sources from REST', async () => {
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port, requests }) => {
     const manager = createManager(port);
-    manager.client = { version: {} };
+    manager.client = { version: { capabilities: { transferDetails: true } } };
 
     const data = await manager.fetchData();
     assert.equal(data.downloads.length, 1);
@@ -201,6 +201,57 @@ test('eMule BB manager hydrates transfer sources from REST', async () => {
     assert.equal(data.downloads[0].gapStatus.length, 1);
     assert.equal(data.downloads[0].reqStatus.length, 1);
     assert.ok(requests.some(request => request.url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/details'));
+  });
+});
+
+test('eMule BB manager falls back to source hydration without transfer detail capability', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [{
+            hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB',
+            name: 'movie.mkv',
+            sizeBytes: 100,
+            completedBytes: 25,
+            progress: 0.25,
+            sources: 1,
+            sourcesTransferring: 1
+          }],
+          sharedFiles: [],
+          uploads: []
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/sources') {
+      return {
+        body: {
+          items: [{
+            userName: 'fallback-user',
+            userHash: 'FEDCBA9876543210FEDCBA9876543210',
+            address: '1.2.3.4',
+            port: 4662
+          }]
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/details') {
+      throw new Error('details endpoint should not be called without transferDetails capability');
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    manager.client = { version: { capabilities: {} } };
+
+    const data = await manager.fetchData();
+    assert.equal(data.downloads.length, 1);
+    assert.equal(data.downloads[0].peers.length, 1);
+    assert.equal(data.downloads[0].peers[0].userName, 'fallback-user');
+    assert.ok(requests.some(request => request.url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/sources'));
+    assert.ok(!requests.some(request => request.url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/details'));
   });
 });
 
