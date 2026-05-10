@@ -238,7 +238,7 @@ class SharedDirAPI {
   // ---------------------------------------------------------------------------
 
   /**
-   * GET /api/amule/shared-dirs?instanceId=...
+   * GET /api/emule/shared-dirs?instanceId=...
    * Read current shared directories.
    */
   async get(req, res) {
@@ -294,7 +294,7 @@ class SharedDirAPI {
   }
 
   /**
-   * PUT /api/amule/shared-dirs?instanceId=...
+   * PUT /api/emule/shared-dirs?instanceId=...
    * Save shared directories (auto-expands subdirectories).
    * Body: { directories: string[] }
    */
@@ -335,7 +335,7 @@ class SharedDirAPI {
   }
 
   /**
-   * POST /api/amule/shared-dirs/reload?instanceId=...
+   * POST /api/emule/shared-dirs/reload?instanceId=...
    * Rescan subdirectories for existing roots and reload aMule.
    */
   async reload(req, res) {
@@ -381,7 +381,7 @@ class SharedDirAPI {
   }
 
   /**
-   * PUT /api/amule/shared-dirs/config?instanceId=...
+   * PUT /api/emule/shared-dirs/config?instanceId=...
    * Save the sharedDirDatPath for an aMule instance.
    * Body: { sharedDirDatPath: string }
    */
@@ -472,7 +472,7 @@ class SharedDirAPI {
     router.post('/reload', this.reload.bind(this));
     router.put('/config', this.saveConfig.bind(this));
 
-    app.use('/api/amule/shared-dirs', router);
+    app.use('/api/emule/shared-dirs', router);
     logger.log('📂 Shared Directory API routes registered');
   }
 }
