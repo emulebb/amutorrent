@@ -79,7 +79,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSuccessMessage(null);
     setDirty(false);
     try {
-      const res = await fetch(`/api/amule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`);
+      const res = await fetch(`/api/emule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setConfigured(data.configured);
@@ -105,7 +105,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/amule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`/api/emule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sharedDirDatPath: configInput.trim() })
@@ -130,7 +130,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/amule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`/api/emule/shared-dirs/config?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sharedDirDatPath: '' })
@@ -189,7 +189,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/amule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`/api/emule/shared-dirs?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directories: roots })
@@ -213,7 +213,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     setReloading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/amule/shared-dirs/reload?instanceId=${encodeURIComponent(instanceId)}`, {
+      const res = await fetch(`/api/emule/shared-dirs/reload?instanceId=${encodeURIComponent(instanceId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
