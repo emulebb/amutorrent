@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.4] - aMule Completion via Gap Status
+
+### 🐛 Fixed
+
+- **False-positive aMule "Download Complete" notifications when corrupted pieces transiently lifted byte counters past file size.** The v3.8.2 `isComplete` flag for aMule downloads used bytes-equality on `fileSizeDownloaded` (= `EC_TAG_PARTFILE_SIZE_DONE`), which counts every byte received from peers including pieces that subsequently failed hash check before being discarded — so the counter could briefly meet or exceed `fileSize` while real file content was still missing, firing a `downloadFinished` event before the file was actually on disk. The check now derives completion from the lib's decoded gap status: an empty range list means every byte is hashed and written (the same computation aMule shows as "Verified & Written" in its UI). Read on the raw lib field before `flattenRangePairs()`, since that helper collapses both the empty and undefined cases to `null`.
+
+---
+
 ## [3.8.3] - aMule Desync Loop & Repeat Completion Notifications
 
 ### 🐛 Fixed
