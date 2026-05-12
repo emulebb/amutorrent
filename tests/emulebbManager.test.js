@@ -605,11 +605,11 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       if (body.query === 'ubuntu') {
-        assert.deepEqual(body, { query: 'ubuntu', method: 'kad', type: 'any', extension: '' });
+        assert.deepEqual(body, { query: 'ubuntu', method: 'kad', type: '', extension: '' });
       } else if (body.query === 'debian') {
-        assert.deepEqual(body, { query: 'debian', method: 'server', type: 'any', extension: '' });
+        assert.deepEqual(body, { query: 'debian', method: 'server', type: '', extension: '' });
       } else if (body.query === 'fedora') {
-        assert.deepEqual(body, { query: 'fedora', method: 'server', type: 'any', extension: '' });
+        assert.deepEqual(body, { query: 'fedora', method: 'server', type: '', extension: '' });
       } else {
         assert.deepEqual(body, { query: 'photo', method: 'automatic', type: 'image', extension: 'jpg' });
       }

@@ -57,7 +57,7 @@ function normalizeSearchRequest(type) {
     kad: 'kad'
   };
   const method = methodAliases[normalizedType] || 'automatic';
-  const fileType = Object.prototype.hasOwnProperty.call(methodAliases, normalizedType) || !normalizedType ? 'any' : normalizedType;
+  const fileType = Object.prototype.hasOwnProperty.call(methodAliases, normalizedType) || !normalizedType ? '' : normalizedType;
   return {
     requestedType: normalizedType || 'automatic',
     method,
