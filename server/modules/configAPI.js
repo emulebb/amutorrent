@@ -55,6 +55,12 @@ class ConfigAPI extends BaseModule {
       amulePassword: config.isFromEnv('amule.password'),
       amuleSharedFilesReloadInterval: config.isFromEnv('amule.sharedFilesReloadIntervalHours'),
       amuleSharedDirDatPath: config.isFromEnv('amule.sharedDirDatPath'),
+      emulebbEnabled: config.isFromEnv('emulebb.enabled'),
+      emulebbHost: config.isFromEnv('emulebb.host'),
+      emulebbPort: config.isFromEnv('emulebb.port'),
+      emulebbApiKey: config.isFromEnv('emulebb.apiKey'),
+      emulebbUseSsl: config.isFromEnv('emulebb.useSsl'),
+      emulebbPath: config.isFromEnv('emulebb.path'),
       rtorrentEnabled: config.isFromEnv('rtorrent.enabled'),
       rtorrentMode: config.isFromEnv('rtorrent.mode'),
       rtorrentHost: config.isFromEnv('rtorrent.host'),
@@ -278,7 +284,7 @@ class ConfigAPI extends BaseModule {
   /**
    * POST /api/config/test
    * Test configuration components
-   * Body: { amule?, rtorrent?, directories?, sonarr?, radarr?, prowlarr? }
+   * Body: { amule?, emulebb?, rtorrent?, directories?, sonarr?, radarr?, prowlarr? }
    * Note: If passwords are missing, use current config values
    */
   async testConfig(req, res) {
