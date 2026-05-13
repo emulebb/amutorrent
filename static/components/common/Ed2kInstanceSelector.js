@@ -1,8 +1,8 @@
 /**
- * AmuleInstanceSelector Component
+ * Ed2kInstanceSelector Component
  *
- * A reusable dropdown/button group for selecting which aMule instance
- * to use for ED2K operations. Only renders when 2+ instances are connected.
+ * A reusable dropdown/button group for selecting which ED2K instance to use.
+ * Only renders when 2+ instances are connected.
  *
  * Mirrors BitTorrentClientSelector with both 'buttons' and 'dropdown' variants.
  */
@@ -14,8 +14,8 @@ import { BASE_HEIGHT } from './FormControls.js';
 const { createElement: h } = React;
 
 /**
- * aMule instance selector component
- * @param {Array} connectedInstances - List of connected instances from useAmuleInstanceSelector
+ * ED2K instance selector component
+ * @param {Array} connectedInstances - List of connected instances from useEd2kInstanceSelector
  * @param {string} selectedId - Currently selected instance ID
  * @param {function} onSelect - Handler for instance selection
  * @param {boolean} showSelector - Whether to show the selector (from hook)
@@ -24,7 +24,7 @@ const { createElement: h } = React;
  * @param {string|null} [label='Instance'] - Label text (null to hide)
  * @param {boolean} [disabled=false] - Disable the selector
  */
-const AmuleInstanceSelector = ({
+const Ed2kInstanceSelector = ({
   connectedInstances,
   selectedId,
   onSelect,
@@ -73,7 +73,7 @@ const AmuleInstanceSelector = ({
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`,
           title: inst.name
         },
-          h(ClientIcon, { client: 'amule', size: 16, title: '' }),
+          h(ClientIcon, { client: inst.type || 'ed2k', size: 16, title: '' }),
           h('span', null, inst.name)
         )
       )
@@ -81,4 +81,4 @@ const AmuleInstanceSelector = ({
   );
 };
 
-export default AmuleInstanceSelector;
+export default Ed2kInstanceSelector;

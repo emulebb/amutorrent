@@ -108,6 +108,12 @@ export const StaticDataProvider = ({ children }) => {
     [instances]
   );
 
+  // Derived: is any instance of this network type registered (enabled in config)?
+  const hasNetworkType = useCallback((networkType) =>
+    Object.values(instances).some(i => i.networkType === networkType),
+    [instances]
+  );
+
   // Derived: get capabilities object for a given instanceId
   const getCapabilities = useCallback((instanceId) =>
     instances[instanceId]?.capabilities || {},
@@ -152,6 +158,7 @@ export const StaticDataProvider = ({ children }) => {
     isTypeConnected,
     isNetworkTypeConnected,
     hasType,
+    hasNetworkType,
     getCapabilities,
     hasClientConnectionWarnings,
     multipleClientsConnected,

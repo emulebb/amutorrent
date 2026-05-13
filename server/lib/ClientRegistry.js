@@ -114,6 +114,31 @@ class ClientRegistry {
   }
 
   /**
+   * Get all managers for a client network family.
+   * @param {string} networkType - Network type key, such as 'ed2k' or 'bittorrent'
+   * @returns {Object[]} Array of manager instances
+   */
+  getByNetworkType(networkType) {
+    const result = [];
+    for (const entry of this._instances.values()) {
+      if (clientMeta.getNetworkType(entry.clientType) === networkType) {
+        result.push(entry.manager);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Get connected managers for a client network family.
+   * @param {string} networkType - Network type key, such as 'ed2k' or 'bittorrent'
+   * @returns {Object[]} Array of connected manager instances
+   */
+  getConnectedByNetworkType(networkType) {
+    return this.getByNetworkType(networkType)
+      .filter(manager => typeof manager.isConnected === 'function' && manager.isConnected());
+  }
+
+  /**
    * Get all registered managers.
    * @returns {Object[]} Array of manager instances
    */

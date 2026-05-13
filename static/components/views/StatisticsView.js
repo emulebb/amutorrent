@@ -29,7 +29,7 @@ const StatisticsView = () => {
 
   // Get data from contexts
   const { appStatsState, setAppStatsState, addAppError } = useAppState();
-  const { hasType, instances } = useStaticData();
+  const { instances } = useStaticData();
   const { theme } = useTheme();
   const { disabledInstances } = useClientFilter();
 
@@ -55,7 +55,6 @@ const StatisticsView = () => {
 
   // Get client chart configuration from hook
   const {
-    ed2kConnected,
     isEd2kEnabled,
     showBothCharts,
     showSingleClient,
@@ -64,11 +63,14 @@ const StatisticsView = () => {
     shouldRenderCharts
   } = useClientChartConfig();
 
-  // Check if aMule is enabled in config (not just connected)
-  const amuleConfigEnabled = hasType('amule');
+  // Stats tree is currently provided by aMule's EC API.
+  const amuleConnectedAndEnabled = useMemo(() => {
+    return Object.entries(instances)
+      .some(([id, inst]) => inst.type === 'amule' && inst.connected && !disabledInstances.has(id));
+  }, [instances, disabledInstances]);
 
-  // Show ED2K stats tree button only when aMule is enabled in config, connected, and enabled in filter
-  const showAmuleStatsTree = amuleConfigEnabled && ed2kConnected && isEd2kEnabled;
+  // Show ED2K stats tree button only when aMule is connected and enabled in filter.
+  const showAmuleStatsTree = amuleConnectedAndEnabled && isEd2kEnabled;
 
   // State for stats tree modal
   const [showStatsTreeModal, setShowStatsTreeModal] = useState(false);

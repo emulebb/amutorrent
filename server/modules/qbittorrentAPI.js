@@ -9,6 +9,7 @@ const BaseModule = require('../lib/BaseModule');
 const QBittorrentHandler = require('../lib/qbittorrent/QBittorrentHandler');
 const config = require('./config');
 const { parseBasicAuth, verifyPassword } = require('../lib/authUtils');
+const { resolveEd2kManager: selectEd2kManager } = require('../lib/ed2kManagerSelector');
 
 // Client registry - replaces direct singleton manager imports
 const registry = require('../lib/ClientRegistry');
@@ -171,21 +172,14 @@ class QBittorrentAPI extends BaseModule {
   updateHandler() {
     if (this.hashStore) {
       const resolveEd2kManager = () => {
-        const configuredId = config.getConfig()?.integrations?.amuleInstanceId;
-        let amuleMgr;
-        if (configuredId) {
-          amuleMgr = registry.get(configuredId);
-          if (amuleMgr?.clientType !== 'amule') {
-            amuleMgr = null;
-          }
-          if (!amuleMgr) {
-            amuleMgr = registry.getByType('amule').find(m => m.isConnected());
-            if (amuleMgr) this.warn(`⚠️ [QBittorrentAPI] Configured ED2K instance "${configuredId}" not found, falling back to "${amuleMgr.instanceId}"`);
-          }
-        } else {
-          amuleMgr = registry.getByType('amule').find(m => m.isConnected());
-        }
-        return amuleMgr;
+        return selectEd2kManager({
+          registry,
+          config,
+          allowedClientTypes: ['amule'],
+          logger: this,
+          logPrefix: 'QBittorrentAPI',
+          configuredLabel: 'aMule compatibility backend'
+        });
       };
 
       this.handler.setDependencies({

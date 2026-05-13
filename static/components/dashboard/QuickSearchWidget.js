@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect } from 'https://esm.sh/react@18.2.0';
-import { Icon, Button, Input, AmuleInstanceSelector, LoadingSpinner } from '../common/index.js';
+import { Icon, Button, Input, Ed2kInstanceSelector, LoadingSpinner } from '../common/index.js';
 import { useStaticData } from '../../contexts/StaticDataContext.js';
 
 const { createElement: h } = React;
@@ -19,10 +19,10 @@ const { createElement: h } = React;
  * @param {function} onSearch - Search submit handler
  * @param {boolean} searchLocked - Whether search is in progress
  * @param {boolean} noBorder - Whether to hide the outer border/padding (default: false)
- * @param {string} searchInstanceId - Selected aMule instance ID for search
+ * @param {string} searchInstanceId - Selected ED2K instance ID for search
  * @param {function} onSearchInstanceChange - Instance selection change handler
- * @param {Array} amuleInstances - Connected aMule instances from useAmuleInstanceSelector
- * @param {boolean} showAmuleSelector - Whether to show aMule instance selector
+ * @param {Array} ed2kInstances - Connected ED2K instances from useEd2kInstanceSelector
+ * @param {boolean} showEd2kSelector - Whether to show ED2K instance selector
  */
 const QuickSearchWidget = ({
   searchType,
@@ -34,13 +34,13 @@ const QuickSearchWidget = ({
   noBorder = false,
   searchInstanceId,
   onSearchInstanceChange,
-  amuleInstances = [],
-  showAmuleSelector = false
+  ed2kInstances = [],
+  showEd2kSelector = false
 }) => {
   const { isNetworkTypeConnected, prowlarrEnabled } = useStaticData();
 
   // Check client connection and configuration status
-  const amuleConnected = isNetworkTypeConnected('ed2k');
+  const ed2kConnected = isNetworkTypeConnected('ed2k');
   const bittorrentConnected = isNetworkTypeConnected('bittorrent');
 
   const handleSubmit = (e) => {
@@ -51,12 +51,12 @@ const QuickSearchWidget = ({
   };
 
   // Search types with availability based on client status
-  // - ED2K and Kad require aMule to be connected
+  // - ED2K and Kad require an ED2K client to be connected
   // - Prowlarr requires prowlarr enabled AND any BitTorrent client connected
   const searchTypes = [
-    { value: 'server', label: 'ED2K Server', icon: '/static/logo-brax.png', disabled: !amuleConnected },
-    // { value: 'local', label: 'Local', icon: '/static/logo-brax.png', disabled: !amuleConnected }, // Hidden temporarily
-    { value: 'kad', label: 'Kad', icon: '/static/logo-brax.png', disabled: !amuleConnected },
+    { value: 'server', label: 'ED2K Server', icon: '/static/logo-brax.png', disabled: !ed2kConnected },
+    // { value: 'local', label: 'Local', icon: '/static/logo-brax.png', disabled: !ed2kConnected }, // Hidden temporarily
+    { value: 'kad', label: 'Kad', icon: '/static/logo-brax.png', disabled: !ed2kConnected },
     { value: 'prowlarr', label: 'Prowlarr', icon: '/static/prowlarr.svg', disabled: !prowlarrEnabled || !bittorrentConnected }
   ];
 
@@ -70,7 +70,7 @@ const QuickSearchWidget = ({
         onSearchTypeChange(firstAvailable.value);
       }
     }
-  }, [selectedTypeDisabled, amuleConnected, bittorrentConnected, prowlarrEnabled]);
+  }, [selectedTypeDisabled, ed2kConnected, bittorrentConnected, prowlarrEnabled]);
 
   return h('div', {
     className: noBorder ? '' : 'bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'
@@ -115,11 +115,11 @@ const QuickSearchWidget = ({
         }),
 
         // Instance selector (only when multi-instance ED2K/Kad search is active)
-        (searchType === 'server' || searchType === 'global' || searchType === 'kad') && h(AmuleInstanceSelector, {
-          connectedInstances: amuleInstances,
+        (searchType === 'server' || searchType === 'global' || searchType === 'kad') && h(Ed2kInstanceSelector, {
+          connectedInstances: ed2kInstances,
           selectedId: searchInstanceId,
           onSelect: onSearchInstanceChange,
-          showSelector: showAmuleSelector,
+          showSelector: showEd2kSelector,
           variant: 'dropdown',
           disabled: searchLocked
         }),

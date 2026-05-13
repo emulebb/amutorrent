@@ -740,7 +740,7 @@ const SettingsView = () => {
     // *arr Integrations
     h(ConfigSection, {
       title: '*arr Integrations',
-      description: 'Torznab and qBittorrent-compatible API for ED2K, Sonarr and Radarr schedulers',
+      description: 'aMule-backed compatibility APIs, Sonarr and Radarr schedulers',
       defaultOpen: false,
       open: openSections.integrations,
       onToggle: (value) => toggleSection('integrations', value),
@@ -753,8 +753,8 @@ const SettingsView = () => {
         const amuleClients = formData.clients.filter(c => c.type === 'amule' && c.enabled !== false);
         return amuleClients.length > 1 && h('div', { className: 'mb-6' },
           h(ConfigField, {
-            label: 'aMule Instance for *arr',
-            description: 'Which aMule instance to use for Torznab API and qBittorrent-compatible API for *arr apps'
+            label: 'aMule Instance for Compatibility APIs',
+            description: 'Which aMule instance backs aMuTorrent Torznab and qBittorrent-compatible APIs. eMule BB exposes Torznab directly.'
           },
             h('select', {
               value: formData.integrations.amuleInstanceId || '',

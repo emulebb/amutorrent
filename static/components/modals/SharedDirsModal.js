@@ -1,15 +1,16 @@
 /**
  * SharedDirsModal Component (Experimental)
  *
- * Modal for managing aMule's shareddir.dat file.
- * Shows root shared directories with add/remove and automatic subdirectory expansion.
+ * Modal for managing ED2K shared directories.
+ * Uses native eMule BB shared-directory APIs when available and falls back to
+ * aMule's shareddir.dat file management.
  */
 
 import React from 'https://esm.sh/react@18.2.0';
 import Portal from '../common/Portal.js';
-import { Button, Icon, IconButton, AlertBox, LoadingSpinner, AmuleInstanceSelector, Tooltip, Input } from '../common/index.js';
+import { Button, Icon, IconButton, AlertBox, LoadingSpinner, Ed2kInstanceSelector, Tooltip, Input } from '../common/index.js';
 import DirectoryBrowserModal from './DirectoryBrowserModal.js';
-import { useAmuleInstanceSelector } from '../../hooks/useAmuleInstanceSelector.js';
+import { useEd2kInstanceSelector } from '../../hooks/useEd2kInstanceSelector.js';
 
 const { createElement: h, useState, useEffect, useCallback } = React;
 
@@ -32,11 +33,12 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     : {};
 
   const {
-    connectedInstances: amuleInstances,
-    showSelector: showAmuleSelector,
+    connectedInstances: ed2kInstances,
+    showSelector: showEd2kSelector,
     selectedId: instanceId,
-    selectInstance: selectAmuleInstance
-  } = useAmuleInstanceSelector(selectorOptions);
+    selectedInstance,
+    selectInstance: selectEd2kInstance
+  } = useEd2kInstanceSelector(selectorOptions);
 
   // State
   const [loading, setLoading] = useState(false);
@@ -242,15 +244,19 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
   if (!show) return null;
 
   const isWorking = loading || saving || reloading;
+  const selectedIsAmule = selectedInstance?.type === 'amule';
 
   // Info box content
   const infoBox = h(AlertBox, { type: 'info', className: 'mb-4' },
     h('p', { className: 'text-xs' },
-      'Shared directories must be accessible by both aMuTorrent and aMule at the same path. ',
-      'aMule sets shareddir.dat to read-only — aMuTorrent must run as the same user to modify it.',
+      selectedIsAmule
+        ? 'Shared directories must be accessible by both aMuTorrent and aMule at the same path. aMule sets shareddir.dat to read-only - aMuTorrent must run as the same user to modify it.'
+        : 'Shared directories are managed through the selected ED2K client API. Paths must be accessible from that client.',
       isDocker && h('span', null,
         h('br'),
-        'In Docker, both containers must use the same UID (e.g. PUID=1000) and share identical volume mount paths for the shared directories.'
+        selectedIsAmule
+          ? 'In Docker, both containers must use the same UID (e.g. PUID=1000) and share identical volume mount paths for the shared directories.'
+          : 'In Docker, make sure the selected ED2K client container can access the same mounted paths.'
       )
     )
   );
@@ -438,13 +444,13 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
         ),
 
         // Instance selector (multi-instance only)
-        showAmuleSelector && h('div', { className: 'px-6 pt-4' },
-          h(AmuleInstanceSelector, {
-            connectedInstances: amuleInstances,
+        showEd2kSelector && h('div', { className: 'px-6 pt-4' },
+          h(Ed2kInstanceSelector, {
+            connectedInstances: ed2kInstances,
             selectedId: instanceId,
-            onSelect: selectAmuleInstance,
-            showSelector: showAmuleSelector,
-            label: 'aMule Instance'
+            onSelect: selectEd2kInstance,
+            showSelector: showEd2kSelector,
+            label: 'ED2K Instance'
           })
         ),
 
@@ -456,7 +462,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
                 h('span', { className: 'ml-2 text-sm text-gray-500' }, 'Loading...')
               )
             : !instanceId
-              ? h('p', { className: 'text-sm text-gray-500 dark:text-gray-400' }, 'No aMule instance connected.')
+              ? h('p', { className: 'text-sm text-gray-500 dark:text-gray-400' }, 'No ED2K instance connected.')
               : configured ? managementView : setupView,
 
           // Error

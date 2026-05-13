@@ -7,11 +7,11 @@
 
 import React from 'https://esm.sh/react@18.2.0';
 import Portal from '../common/Portal.js';
-import { Button, Select, Textarea, Icon, Input, IconButton, ClientIcon, BitTorrentClientSelector, AmuleInstanceSelector, PathPicker } from '../common/index.js';
+import { Button, Select, Textarea, Icon, Input, IconButton, ClientIcon, BitTorrentClientSelector, Ed2kInstanceSelector, PathPicker } from '../common/index.js';
 import { useClientFilter } from '../../contexts/ClientFilterContext.js';
 import { useStaticData } from '../../contexts/StaticDataContext.js';
 import { useBitTorrentClientSelector } from '../../hooks/useBitTorrentClientSelector.js';
-import { useAmuleInstanceSelector } from '../../hooks/useAmuleInstanceSelector.js';
+import { useEd2kInstanceSelector } from '../../hooks/useEd2kInstanceSelector.js';
 
 const { createElement: h, useState, useRef, useCallback, useEffect } = React;
 
@@ -32,8 +32,8 @@ const AddDownloadModal = ({
   onClose,
   initialTorrentFiles = []
 }) => {
-  // Get aMule connection status from context
-  const { ed2kConnected: amuleConnected } = useClientFilter();
+  // Get ED2K connection status from context
+  const { ed2kConnected } = useClientFilter();
   // Get BitTorrent client selection state (instance-aware)
   const {
     connectedClients: btClients,
@@ -54,14 +54,14 @@ const AddDownloadModal = ({
       .sort((a, b) => a.order - b.order);
   }, [instances]);
 
-  // aMule instance selector for ED2K links
+  // ED2K instance selector for ED2K links
   const {
-    connectedInstances: amuleInstances,
-    showSelector: showAmuleSelector,
-    selectedId: effectiveAmuleInstance,
-    selectedInstance: selectedAmuleObj,
-    selectInstance: selectAmuleInstance
-  } = useAmuleInstanceSelector();
+    connectedInstances: ed2kInstances,
+    showSelector: showEd2kSelector,
+    selectedId: effectiveEd2kInstance,
+    selectedInstance: selectedEd2kObj,
+    selectInstance: selectEd2kInstance
+  } = useEd2kInstanceSelector();
 
   // State
   const [links, setLinks] = useState('');
@@ -107,7 +107,7 @@ const AddDownloadModal = ({
   const { ed2kLinks, magnetLinks, invalidLinks } = parseLinks(links);
 
   // Check if we can submit
-  const hasEd2kLinks = ed2kLinks.length > 0 && amuleConnected;
+  const hasEd2kLinks = ed2kLinks.length > 0 && ed2kConnected;
   const hasMagnetLinks = magnetLinks.length > 0 && hasBitTorrentClient;
   const hasTorrentFiles = torrentFiles.length > 0 && hasBitTorrentClient;
   const canSubmit = hasEd2kLinks || hasMagnetLinks || hasTorrentFiles;
@@ -136,8 +136,8 @@ const AddDownloadModal = ({
     const effectiveSavePath = (showSavePath && customSavePath && supportsCustomPath) ? customSavePath : null;
 
     // Add ED2K links if any (send category name - backend resolves to per-instance amuleId)
-    if (ed2kLinks.length > 0 && amuleConnected && onAddEd2kLinks) {
-      onAddEd2kLinks(ed2kLinks, finalCategory, false, effectiveAmuleInstance);
+    if (ed2kLinks.length > 0 && ed2kConnected && onAddEd2kLinks) {
+      onAddEd2kLinks(ed2kLinks, finalCategory, false, effectiveEd2kInstance);
     }
 
     // Add magnet links if any (pass instanceId + clientType + optional savePath)
@@ -237,14 +237,14 @@ const AddDownloadModal = ({
     const parts = [];
     const finalCategory = getFinalCategory();
     const selectedClientName = selectedClient?.name || 'BitTorrent';
-    const effectiveAmuleName = selectedAmuleObj?.name || 'aMule';
+    const effectiveEd2kName = selectedEd2kObj?.name || 'ED2K';
 
     if (ed2kLinks.length > 0) {
       let ed2kPart = `${ed2kLinks.length} ED2K link${ed2kLinks.length > 1 ? 's' : ''}`;
-      if (!amuleConnected) {
-        ed2kPart += ' (aMule offline)';
+      if (!ed2kConnected) {
+        ed2kPart += ' (ED2K offline)';
       } else {
-        ed2kPart += ` → ${effectiveAmuleName}`;
+        ed2kPart += ` → ${effectiveEd2kName}`;
         if (finalCategory && finalCategory !== 'Default') {
           ed2kPart += ` (${finalCategory})`;
         }
@@ -441,16 +441,16 @@ const AddDownloadModal = ({
             );
           })(),
 
-          // aMule instance selector - visible when 2+ aMule instances and ED2K links
+          // ED2K instance selector - visible when 2+ ED2K instances and ED2K links
           ed2kLinks.length > 0 && h('div', null,
-            showAmuleSelector && h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1' },
-              'aMule Instance'
+            showEd2kSelector && h('label', { className: 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1' },
+              'ED2K Instance'
             ),
-            h(AmuleInstanceSelector, {
-              connectedInstances: amuleInstances,
-              selectedId: effectiveAmuleInstance,
-              onSelect: selectAmuleInstance,
-              showSelector: showAmuleSelector,
+            h(Ed2kInstanceSelector, {
+              connectedInstances: ed2kInstances,
+              selectedId: effectiveEd2kInstance,
+              onSelect: selectEd2kInstance,
+              showSelector: showEd2kSelector,
               label: null
             })
           ),
@@ -458,7 +458,7 @@ const AddDownloadModal = ({
           // Category options toggle - only show when content is entered and at least one client is connected
           (() => {
             const hasDownloads = ed2kLinks.length > 0 || magnetLinks.length > 0 || torrentFiles.length > 0;
-            const hasConnectedClient = amuleConnected || hasBitTorrentClient;
+            const hasConnectedClient = ed2kConnected || hasBitTorrentClient;
             const showOptionsSection = hasDownloads && hasConnectedClient;
 
             if (!showOptionsSection) return null;

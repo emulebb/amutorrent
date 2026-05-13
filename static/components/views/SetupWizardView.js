@@ -1424,8 +1424,8 @@ const SetupWizardView = ({ onComplete }) => {
       h('h2', { className: 'text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2' }, 'Integrations'),
       h('p', { className: 'text-gray-600 dark:text-gray-400 mb-6' }, 'Configure optional integrations for automatic searches.'),
 
-      // Integration config info (shown when an ED2K client is enabled for *arr integration)
-      (formData.amule.enabled !== false || formData.emulebb?.enabled) && h(IntegrationConfigInfo, {
+      // aMuTorrent compatibility APIs are aMule-backed; eMule BB exposes Torznab directly.
+      formData.amule.enabled !== false && h(IntegrationConfigInfo, {
         title: '*arr Integration Configuration',
         port: formData.server.port,
         authEnabled: formData.server.auth.enabled,

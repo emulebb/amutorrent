@@ -947,6 +947,10 @@ class EmulebbManager extends BaseClientManager {
     this.searchInProgress = false;
   }
 
+  isSearchInProgress() {
+    return this.searchInProgress;
+  }
+
   async shutdown() {
     this.clearReconnect();
     this.client = null;

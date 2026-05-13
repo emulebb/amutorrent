@@ -6,10 +6,10 @@
  */
 
 import React from 'https://esm.sh/react@18.2.0';
-import { StatsTree, Icon, ClientIcon, Portal, AmuleInstanceSelector } from '../common/index.js';
+import { StatsTree, Icon, ClientIcon, Portal, Ed2kInstanceSelector } from '../common/index.js';
 import { useStaticData } from '../../contexts/StaticDataContext.js';
 import { useDataFetch } from '../../contexts/DataFetchContext.js';
-import { useAmuleInstanceSelector } from '../../hooks/useAmuleInstanceSelector.js';
+import { useEd2kInstanceSelector } from '../../hooks/useEd2kInstanceSelector.js';
 
 const { createElement: h, useEffect, useState } = React;
 
@@ -24,19 +24,19 @@ const StatsTreeModal = ({ show, onClose }) => {
   const { dataStatsTree: statsTree } = useStaticData();
   const { fetchStatsTree } = useDataFetch();
   const {
-    connectedInstances: amuleInstances,
-    showSelector: showAmuleSelector,
+    connectedInstances: statsTreeInstances,
+    showSelector: showStatsTreeSelector,
     selectedId: effectiveInstance,
     selectedInstance: selectedObj,
     selectInstance
-  } = useAmuleInstanceSelector();
+  } = useEd2kInstanceSelector({ clientTypes: ['amule'] });
 
   // Persist expanded nodes across open/close
   const [expandedNodes, setExpandedNodes] = useState({});
 
   // Fetch on open and when instance changes; auto-refresh while open
   useEffect(() => {
-    if (!show) return;
+    if (!show || !effectiveInstance) return;
     fetchStatsTree(effectiveInstance);
     const interval = setInterval(() => fetchStatsTree(effectiveInstance), STATS_TREE_REFRESH_INTERVAL);
     return () => clearInterval(interval);
@@ -98,11 +98,11 @@ const StatsTreeModal = ({ show, onClose }) => {
           showHeader: false,
           expandedNodes,
           onExpandedNodesChange: setExpandedNodes,
-          toolbarPrefix: h(AmuleInstanceSelector, {
-            connectedInstances: amuleInstances,
+          toolbarPrefix: h(Ed2kInstanceSelector, {
+            connectedInstances: statsTreeInstances,
             selectedId: effectiveInstance,
             onSelect: selectInstance,
-            showSelector: showAmuleSelector,
+            showSelector: showStatsTreeSelector,
             variant: 'dropdown',
             className: 'text-sm'
           })

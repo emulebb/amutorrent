@@ -283,7 +283,7 @@ class WebSocketHandlers extends BaseModule {
 
     context.log(`New WebSocket connection from ${clientIp}${locationInfo}`);
     context.send({ type: 'connected', message: 'Connected to aMule Controller' });
-    context.send({ type: 'search-lock', locked: registry.getByType('amule').some(m => m.isSearchInProgress()) });
+    context.send({ type: 'search-lock', locked: registry.getByNetworkType('ed2k').some(m => m.isSearchInProgress?.()) });
 
     // Send cached batch update to newly connected client (if available), filtered by ownership
     // Always sends full snapshot (items array), never delta, for new connections
@@ -336,9 +336,9 @@ class WebSocketHandlers extends BaseModule {
         return;
       }
 
-      // Auto-reconnect all enabled-but-disconnected aMule instances
-      for (const mgr of registry.getByType('amule')) {
-        if (mgr.isEnabled() && !mgr.isConnected()) {
+      // Auto-reconnect all enabled-but-disconnected ED2K instances
+      for (const mgr of registry.getByNetworkType('ed2k')) {
+        if (mgr.isEnabled() && !mgr.isConnected() && typeof mgr.initClient === 'function') {
           try { await mgr.initClient(); } catch (e) { /* will retry on next message */ }
         }
       }

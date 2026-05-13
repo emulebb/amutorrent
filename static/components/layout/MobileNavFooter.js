@@ -62,9 +62,9 @@ const MoreMenuItem = ({ icon, label, active, warning, onClick }) => {
  */
 const MobileNavFooter = ({ currentView, onNavigate }) => {
   const { dataItems } = useLiveData();
-  const { hasType, hasCategoryPathWarnings, hasClientConnectionWarnings } = useStaticData();
+  const { hasNetworkType, hasCategoryPathWarnings, hasClientConnectionWarnings } = useStaticData();
   const { hasCap, isAdmin } = useCapabilities();
-  const amuleEnabled = hasType('amule');
+  const ed2kEnabled = hasNetworkType('ed2k');
 
   // Count active downloads for badge
   const activeDownloadCount = useMemo(() => {
@@ -125,7 +125,7 @@ const MobileNavFooter = ({ currentView, onNavigate }) => {
     { icon: 'history', label: 'History', view: 'history', cap: 'view_history' },
     { icon: 'share', label: 'Shared Files', view: 'shared', cap: 'view_shared' },
     { icon: 'folder', label: 'Categories', view: 'categories', warning: hasCategoryPathWarnings, cap: 'manage_categories' },
-    ...(amuleEnabled ? [{ icon: 'server', label: 'ED2K Servers', view: 'servers', cap: 'view_servers' }] : []),
+    ...(ed2kEnabled ? [{ icon: 'server', label: 'ED2K Servers', view: 'servers', cap: 'view_servers' }] : []),
     { icon: 'fileText', label: 'Logs', view: 'logs', cap: 'view_logs' },
     { icon: 'chartBar', label: 'Statistics', view: 'statistics', cap: 'view_statistics' },
     { icon: 'bell', label: 'Notifications', view: 'notifications', adminOnly: true },

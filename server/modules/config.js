@@ -399,7 +399,7 @@ class Config extends BaseModule {
         geoip: 'server/data/geoip'
       },
       integrations: {
-        amuleInstanceId: null,  // null = auto (first connected aMule instance)
+        amuleInstanceId: null,  // null = auto (first connected aMule compatibility backend)
         sonarr: {
           enabled: false,
           url: '',
@@ -897,6 +897,15 @@ class Config extends BaseModule {
    */
   getConfig() {
     return this.runtimeConfig;
+  }
+
+  /**
+   * Return the configured compatibility backend instance ID.
+   *
+   * The persisted key remains `amuleInstanceId` for existing configs and API compatibility.
+   */
+  getConfiguredEd2kInstanceId() {
+    return this.runtimeConfig?.integrations?.amuleInstanceId || null;
   }
 
   /**

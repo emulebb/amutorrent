@@ -182,18 +182,19 @@ class QBittorrentHandler {
   // ============================================================================
 
   /**
-   * Initialize categories on startup
-   * Initial sync is triggered by amuleManager.onConnect callback (see server.js)
+   * Initialize categories on startup.
+   * The qBittorrent compatibility API is backed by aMule only; eMule BB exposes
+   * its own Torznab surface directly.
    */
   initCategories() {
-    if (this.registry && [...this.registry.getByType('amule'), ...this.registry.getByType('emulebb')].length === 0) {
-      // No ED2K client configured: mark as initialized (no categories to load)
+    if (this.registry && this.registry.getByType('amule').length === 0) {
+      // No aMule compatibility backend configured: mark as initialized.
       this.categoryCacheInitialized = true;
     }
 
     // Periodic refresh (every 5 minutes)
     const refreshTimer = setInterval(() => {
-      if (this.registry && [...this.registry.getByType('amule'), ...this.registry.getByType('emulebb')].length === 0) return;
+      if (this.registry && this.registry.getByType('amule').length === 0) return;
       this.syncCategories().catch(err => {
         logger.error('[qBittorrent] Failed to refresh category mappings:', err);
       });
@@ -253,7 +254,7 @@ class QBittorrentHandler {
       const promise = new Promise(r => { resolve = r; });
       this.categoryInitPromise = { promise, resolve };
 
-      // Safety timeout: don't block requests forever if aMule never connects
+      // Safety timeout: don't block requests forever if aMule never connects.
       setTimeout(() => {
         if (!this.categoryCacheInitialized) {
           logger.warn('[qBittorrent] Category initialization timeout, aMule may not be available');

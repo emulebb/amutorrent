@@ -19,7 +19,7 @@ export { default as SegmentsBar } from './SegmentsBar.js';
 export { default as FlagIcon } from './FlagIcon.js';
 export { default as ClientIcon } from './ClientIcon.js';
 export { default as BitTorrentClientSelector } from './BitTorrentClientSelector.js';
-export { default as AmuleInstanceSelector } from './AmuleInstanceSelector.js';
+export { default as Ed2kInstanceSelector } from './Ed2kInstanceSelector.js';
 export { PaginationControls } from './PaginationControls.js';
 export { default as LoadMoreButton } from './LoadMoreButton.js';
 export { default as SearchResultsList, SEARCH_RESULTS_COLUMNS, PROWLARR_RESULTS_COLUMNS } from './SearchResultsList.js';

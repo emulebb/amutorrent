@@ -1,8 +1,8 @@
 /**
- * useAmuleInstanceSelector Hook
+ * useEd2kInstanceSelector Hook
  *
- * Provides state and helpers for selecting which aMule instance
- * to use for ED2K operations (search, add downloads, servers, stats).
+ * Provides state and helpers for selecting which ED2K instance to use for
+ * ED2K operations (search, add downloads, servers, stats).
  *
  * Instance-aware: builds list from connected instances metadata.
  * Shows selection UI when 2+ ED2K instances are connected.
@@ -12,28 +12,29 @@ import { useState, useMemo, useCallback } from 'https://esm.sh/react@18.2.0';
 import { useStaticData } from '../contexts/StaticDataContext.js';
 
 /**
- * Hook for aMule instance selection
+ * Hook for ED2K instance selection
  * @param {Object} [options]
  * @param {string} [options.selectedId] - Externally controlled selected ID (overrides internal state)
  * @param {Function} [options.onSelect] - External selection handler (overrides internal state)
  * @returns {Object} Instance selection state and helpers
  */
-export function useAmuleInstanceSelector(options = {}) {
+export function useEd2kInstanceSelector(options = {}) {
   const { instances } = useStaticData();
+  const allowedTypes = options.clientTypes ? new Set(options.clientTypes) : null;
 
   // Build list of connected ED2K instances (sorted by config order)
   const connectedInstances = useMemo(() => {
     return Object.entries(instances || {})
-      .filter(([, inst]) => inst.connected && inst.networkType === 'ed2k')
+      .filter(([, inst]) => inst.connected && inst.networkType === 'ed2k' && (!allowedTypes || allowedTypes.has(inst.type)))
       .map(([id, inst]) => ({
         id,
         type: inst.type,
-        name: inst.name || 'aMule',
+        name: inst.name || (inst.type === 'emulebb' ? 'eMule BB' : 'aMule'),
         color: inst.color,
         order: inst.order
       }))
       .sort((a, b) => a.order - b.order);
-  }, [instances]);
+  }, [instances, options.clientTypes]);
 
   // Whether to show instance selector (2+ instances connected)
   const showSelector = connectedInstances.length >= 2;
@@ -72,4 +73,4 @@ export function useAmuleInstanceSelector(options = {}) {
   };
 }
 
-export default useAmuleInstanceSelector;
+export default useEd2kInstanceSelector;

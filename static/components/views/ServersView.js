@@ -6,9 +6,9 @@
  */
 
 import React from 'https://esm.sh/react@18.2.0';
-import { Table, DeleteModal, MobileSortButton, Button, Input, IconButton, AmuleInstanceSelector, LoadingSpinner } from '../common/index.js';
+import { Table, DeleteModal, MobileSortButton, Button, Input, IconButton, Ed2kInstanceSelector, LoadingSpinner } from '../common/index.js';
 import { DEFAULT_SORT_CONFIG, VIEW_TITLE_STYLES } from '../../utils/index.js';
-import { useModal, useTableState, useAmuleInstanceSelector } from '../../hooks/index.js';
+import { useModal, useTableState, useEd2kInstanceSelector } from '../../hooks/index.js';
 import { useStickyToolbar } from '../../contexts/StickyHeaderContext.js';
 import { useStaticData } from '../../contexts/StaticDataContext.js';
 import { useDataFetch } from '../../contexts/DataFetchContext.js';
@@ -25,13 +25,13 @@ const ServersView = () => {
   const { fetchServers } = useDataFetch();
   const actions = useActions();
 
-  // Multi-instance: aMule instance selector
+  // Multi-instance: ED2K instance selector
   const {
-    connectedInstances: amuleInstances,
-    showSelector: showAmuleSelector,
+    connectedInstances: ed2kInstances,
+    showSelector: showEd2kSelector,
     selectedId: effectiveInstance,
-    selectInstance: selectAmuleInstance
-  } = useAmuleInstanceSelector();
+    selectInstance: selectEd2kInstance
+  } = useEd2kInstanceSelector();
 
   // Fetch servers on mount (and when selected instance changes)
   useEffect(() => {
@@ -63,11 +63,11 @@ const ServersView = () => {
 
   // Memoize connected server address from selected instance's network status
   const connectedServerAddress = useMemo(() => {
-    // Multi-instance: use selected instance, single: use first connected aMule
-    const instId = effectiveInstance || amuleInstances[0]?.id;
+    // Multi-instance: use selected instance; single: use first connected ED2K backend.
+    const instId = effectiveInstance || ed2kInstances[0]?.id;
     if (!instId) return null;
     return instances[instId]?.networkStatus?.ed2k?.serverAddress || null;
-  }, [effectiveInstance, amuleInstances, instances]);
+  }, [effectiveInstance, ed2kInstances, instances]);
 
   const isConnectedServer = useCallback(
     (serverAddress) => connectedServerAddress && serverAddress === connectedServerAddress,
@@ -293,15 +293,15 @@ const ServersView = () => {
   [onRefresh, dataLoaded.servers]);
 
   const instanceSelector = useMemo(() =>
-    h(AmuleInstanceSelector, {
-      connectedInstances: amuleInstances,
+    h(Ed2kInstanceSelector, {
+      connectedInstances: ed2kInstances,
       selectedId: effectiveInstance,
-      onSelect: selectAmuleInstance,
-      showSelector: showAmuleSelector,
+      onSelect: selectEd2kInstance,
+      showSelector: showEd2kSelector,
       variant: 'dropdown',
       className: 'text-xs'
     }),
-  [amuleInstances, effectiveInstance, selectAmuleInstance, showAmuleSelector]);
+  [ed2kInstances, effectiveInstance, selectEd2kInstance, showEd2kSelector]);
 
   const mobileHeaderContent = useMemo(() =>
     h('div', { className: 'flex items-center gap-2' },
