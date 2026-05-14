@@ -379,6 +379,7 @@ class EmulebbManager extends BaseClientManager {
   constructor() {
     super();
     this.lastSnapshot = null;
+    this.lastSharedFiles = [];
     this.lastSearchId = null;
     this.lastSearchResults = [];
     this.lastSearchMeta = null;
@@ -487,8 +488,37 @@ class EmulebbManager extends BaseClientManager {
     await this._refreshCategories().catch(err => {
       this.warn(`Failed to refresh eMule BB categories: ${logger.errorDetail(err)}`);
     });
-    const snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
+    let snapshot = null;
+    try {
+      snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
+    } catch (err) {
+      if (/SERVICE_BUSY/i.test(err.message || '') && /shared file hashing/i.test(err.message || '')) {
+        this.warn(`eMule BB shared files are still warming: ${logger.errorDetail(err)}`);
+        return {
+          downloads: [],
+          sharedFiles: this.lastSharedFiles.slice(),
+          uploads: [],
+          nativeStatus: {
+            sharedFilesReady: false,
+            sharedHashingActive: true,
+            sharedHashingCount: null,
+            sharedStartupCache: null
+          }
+        };
+      }
+      throw err;
+    }
     this.lastSnapshot = snapshot;
+    const status = snapshot?.status || {};
+    const stats = status?.stats || {};
+    const sharedRows = unwrapItems(snapshot.sharedFiles);
+    const sharedFilesReady = stats.sharedFilesReady !== false && stats.sharedHashingActive !== true;
+    const sharedFiles = !sharedFilesReady && sharedRows.length === 0
+      ? this.lastSharedFiles.slice()
+      : sharedRows.map(item => normalizeSharedFile(item, this.instanceId));
+    if (sharedFilesReady || sharedRows.length > 0) {
+      this.lastSharedFiles = sharedFiles.slice();
+    }
     const transferRows = unwrapItems(snapshot.transfers);
     const downloads = transferRows.map(item => normalizeTransfer(item, this.instanceId, this._categoryById));
     await Promise.all(downloads.map(async (download, index) => {
@@ -519,8 +549,14 @@ class EmulebbManager extends BaseClientManager {
     }));
     return {
       downloads,
-      sharedFiles: unwrapItems(snapshot.sharedFiles).map(item => normalizeSharedFile(item, this.instanceId)),
-      uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId))
+      sharedFiles,
+      uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId)),
+      nativeStatus: {
+        sharedFilesReady,
+        sharedHashingActive: stats.sharedHashingActive === true,
+        sharedHashingCount: Number.isFinite(Number(stats.sharedHashingCount)) ? Number(stats.sharedHashingCount) : null,
+        sharedStartupCache: status.sharedStartupCache || null
+      }
     };
   }
 
@@ -587,7 +623,9 @@ class EmulebbManager extends BaseClientManager {
           statsTreeLeaf('Active uploads', parseFiniteNumber(stats.activeUploads, 0)),
           statsTreeLeaf('Waiting uploads', parseFiniteNumber(stats.waitingUploads, 0)),
           statsTreeLeaf('Shared hashing active', formatBoolean(stats.sharedHashingActive)),
-          statsTreeLeaf('Shared hashing queue', parseFiniteNumber(stats.sharedHashingCount, 0))
+          statsTreeLeaf('Shared hashing queue', parseFiniteNumber(stats.sharedHashingCount, 0)),
+          statsTreeLeaf('Shared files ready', formatBoolean(stats.sharedFilesReady)),
+          statsTreeLeaf('Startup cache', formatBoolean(status.sharedStartupCache?.loaded, 'Loaded', status.sharedStartupCache?.rejected ? 'Rejected' : 'Not loaded'))
         ])
       ])
     };

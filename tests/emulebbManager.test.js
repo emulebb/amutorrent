@@ -79,6 +79,82 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   });
 });
 
+test('eMule BB manager preserves shared files while native startup cache warms', async () => {
+  let snapshotCount = 0;
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/app') {
+      return { body: { version: '0.72a', capabilities: { categoriesRead: true } } };
+    }
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      snapshotCount += 1;
+      if (snapshotCount === 1) {
+        return {
+          body: {
+            status: { stats: { sharedFilesReady: true, sharedHashingActive: false, sharedHashingCount: 0 }, sharedStartupCache: { loaded: true, ready: true } },
+            transfers: [],
+            sharedFiles: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'seed.bin', sizeBytes: 42 }],
+            uploads: []
+          }
+        };
+      }
+      return {
+        body: {
+          status: { stats: { sharedFilesReady: false, sharedHashingActive: true, sharedHashingCount: 2 }, sharedStartupCache: { loaded: false, ready: false, rejected: false } },
+          transfers: [],
+          sharedFiles: [],
+          uploads: []
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    assert.equal(await manager.initClient(), true);
+
+    const warm = await manager.fetchData();
+    assert.equal(warm.sharedFiles.length, 1);
+    assert.equal(warm.nativeStatus.sharedFilesReady, true);
+
+    const warming = await manager.fetchData();
+    assert.equal(warming.sharedFiles.length, 1);
+    assert.equal(warming.sharedFiles[0].hash, 'abcdefabcdefabcdefabcdefabcdefab');
+    assert.equal(warming.nativeStatus.sharedFilesReady, false);
+    assert.equal(warming.nativeStatus.sharedHashingActive, true);
+    assert.equal(warming.nativeStatus.sharedHashingCount, 2);
+  });
+});
+
+test('eMule BB manager treats legacy SERVICE_BUSY shared hashing as warmup', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/app') {
+      return { body: { version: '0.72a', capabilities: { categoriesRead: true } } };
+    }
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        status: 503,
+        body: { error: { code: 'SERVICE_BUSY', message: 'shared file hashing is active (2 files pending)' } }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.lastSharedFiles = [{ hash: 'cached', name: 'cached.bin' }];
+    assert.equal(await manager.initClient(), true);
+
+    const data = await manager.fetchData();
+    assert.equal(data.sharedFiles.length, 1);
+    assert.equal(data.sharedFiles[0].hash, 'cached');
+    assert.equal(data.nativeStatus.sharedFilesReady, false);
+    assert.equal(data.nativeStatus.sharedHashingActive, true);
+  });
+});
+
 test('eMule BB manager normalizes native REST network status', () => {
   const manager = new EmulebbManager();
   const status = manager.getNetworkStatus({
