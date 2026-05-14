@@ -389,7 +389,7 @@ const SettingsView = () => {
 
   const usersBadge = userCount != null ? pill(`${userCount} user${userCount !== 1 ? 's' : ''}`) : null;
 
-  return h('div', { className: 'w-full lg:w-5/6 mx-auto px-2 py-4 sm:px-4' },
+  return h('div', { className: 'w-full lg:w-5/6 mx-auto px-2 py-4 sm:px-4', 'data-testid': 'view-settings' },
     // Interaction overlay while testing/saving
     (isTesting || loading) && h(Portal, null,
       h('div', {

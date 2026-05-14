@@ -307,6 +307,7 @@ const AddDownloadModal = ({
         // which only kicks in once the flex column itself has a height.
         // `modal-full` overrides this to full-viewport on mobile via the
         // input.css rule, so the cap is desktop-only in practice.
+        'data-testid': 'emulebb-add-download-modal',
         className: 'modal-full bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden',
         onClick: (e) => e.stopPropagation()
       },
@@ -359,6 +360,7 @@ const AddDownloadModal = ({
               onPaste: handlePaste,
               placeholder: 'Paste ED2K and/or magnet links\n\ned2k://|file|...\nmagnet:?xt=urn:btih:...',
               rows: 4,
+              'data-testid': 'emulebb-add-download-links',
               className: 'resize-y font-mono text-sm',
               autoFocus: true
             })
@@ -556,11 +558,13 @@ const AddDownloadModal = ({
         h('div', { className: 'px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end' },
           h(Button, {
             variant: 'secondary',
+            'data-testid': 'emulebb-add-download-cancel',
             onClick: onClose
           }, 'Cancel'),
           h(Button, {
             variant: 'success',
             onClick: handleSubmit,
+            'data-testid': 'emulebb-add-download-submit',
             disabled: !canSubmit
           }, 'Add Download')
         )

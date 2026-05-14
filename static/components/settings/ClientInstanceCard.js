@@ -43,6 +43,8 @@ const ClientInstanceCard = ({ client, clientIndex, totalClients, onMove, onEdit,
     : 'border-gray-200 dark:border-gray-700';
 
   return h('div', {
+    'data-testid': `client-card-${client.type}`,
+    'data-instance-id': client.id || '',
     className: `border rounded-lg p-4 bg-white dark:bg-gray-800 ${borderClass} ${!isEnabled ? 'opacity-60' : ''}`
   },
     // Header row with icon, name, type badge, and toggle
@@ -128,6 +130,7 @@ const ClientInstanceCard = ({ client, clientIndex, totalClients, onMove, onEdit,
       h('button', {
         onClick: () => onTest(clientIndex),
         disabled: isTesting || !isEnabled,
+        'data-testid': `client-card-test-${client.type}`,
         className: 'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
       },
         h(Icon, { name: 'plugConnect', size: 14 }),

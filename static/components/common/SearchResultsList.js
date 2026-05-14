@@ -202,6 +202,8 @@ const SearchResultsList = ({
     const { downloaded, onActiveInstance, onAllInstances } = getDownloadStatus(item.fileHash);
     const isSelected = selectedFiles.has(item.fileHash);
     return h('div', {
+      'data-testid': 'emulebb-search-result-card',
+      'data-file-hash': item.fileHash,
       className: `${getMobileCardRowClass(idx)}${isSelected ? ' !bg-purple-100 dark:!bg-purple-900/40' : ''}`
     },
       h(MobileCardHeader, {
@@ -222,6 +224,8 @@ const SearchResultsList = ({
                 type: 'checkbox',
                 checked: isSelected,
                 onChange: () => onToggleSelection(item.fileHash),
+                'data-testid': 'emulebb-search-result-checkbox',
+                'data-file-hash': item.fileHash,
                 className: 'w-5 h-5 text-purple-600 border-gray-300 rounded cursor-pointer'
               }),
               downloaded && h(Tooltip, { content: 'Downloaded on another client' },
@@ -279,6 +283,8 @@ const SearchResultsList = ({
         type: 'checkbox',
         checked: selectedFiles.has(item.fileHash),
         onChange: () => onToggleSelection(item.fileHash),
+        'data-testid': 'emulebb-search-result-checkbox',
+        'data-file-hash': item.fileHash,
         className: 'w-4 h-4 text-purple-600 border-gray-300 rounded cursor-pointer'
       }),
       downloaded && h(Tooltip, { content: 'Downloaded on another client', position: 'left' },

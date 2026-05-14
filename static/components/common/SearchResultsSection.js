@@ -337,7 +337,7 @@ const SearchResultsSection = ({
   // Register sticky toolbar for mobile scroll behavior
   const mobileHeaderRef = useStickyToolbar(mobileHeaderContent);
 
-  return h('div', null,
+  return h('div', { 'data-testid': 'emulebb-search-results' },
     // Mobile header with inline controls
     h('div', { className: 'xl:hidden mb-2', ref: mobileHeaderRef },
       h('div', { className: showMobileFilterButton ? 'pb-2 border-b border-gray-200 dark:border-gray-700' : '' },
@@ -430,6 +430,7 @@ const SearchResultsSection = ({
         value: searchDownloadCategory,
         onChange: (e) => setSearchDownloadCategory(e.target.value),
         options: dataCategories.map(cat => ({ value: cat.name, label: cat.title || cat.name })),
+        'data-testid': 'emulebb-search-download-category',
         title: 'Select category for downloads'
       }),
       canAddDownloads && (() => {
@@ -442,6 +443,7 @@ const SearchResultsSection = ({
           icon: downloading ? null : 'download',
           iconSize: 14,
           onClick: handleBatchDownload,
+          'data-testid': 'emulebb-search-download-selected',
           disabled: isDisabled
         },
           downloading

@@ -77,6 +77,7 @@ const QuickSearchWidget = ({
   },
     h('form', {
       onSubmit: handleSubmit,
+      'data-testid': 'emulebb-search-form',
       className: 'flex flex-col gap-2'
     },
       // Row 1: Search type selector (full width)
@@ -90,6 +91,7 @@ const QuickSearchWidget = ({
             variant: searchType === type.value ? 'primary' : 'secondary',
             onClick: () => onSearchTypeChange(type.value),
             disabled: searchLocked || type.disabled,
+            'data-testid': `emulebb-search-type-${type.value}`,
             className: 'flex-1 justify-center',
             title: type.disabled ? `${type.label} is not available` : undefined
           },
@@ -111,6 +113,7 @@ const QuickSearchWidget = ({
           onChange: (e) => onSearchQueryChange(e.target.value),
           placeholder: 'Enter search query...',
           disabled: searchLocked || selectedTypeDisabled,
+          'data-testid': 'emulebb-search-query',
           className: 'flex-1 min-w-0'
         }),
 
@@ -129,6 +132,7 @@ const QuickSearchWidget = ({
           type: 'submit',
           variant: 'primary',
           disabled: searchLocked || !searchQuery.trim() || selectedTypeDisabled,
+          'data-testid': 'emulebb-search-submit',
           className: 'whitespace-nowrap'
         },
           searchLocked

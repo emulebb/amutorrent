@@ -172,7 +172,7 @@ const StatisticsView = () => {
     title
   );
 
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-statistics' },
     // Header
     h('div', { className: 'flex justify-between items-center gap-2' },
       h('h2', { className: VIEW_TITLE_STYLES.desktop }, 'Historical Statistics'),

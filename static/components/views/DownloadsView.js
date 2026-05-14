@@ -314,6 +314,7 @@ const DownloadsView = () => {
             icon: 'plus',
             iconSize: 18,
             onClick: openAddDownloadModal,
+            'data-testid': 'emulebb-downloads-add',
             title: 'Add Download'
           })
         ].filter(Boolean)
@@ -327,7 +328,7 @@ const DownloadsView = () => {
   // ============================================================================
   // RENDER
   // ============================================================================
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-downloads' },
     // Mobile header (xl:hidden)
     h('div', { className: 'xl:hidden', ref: mobileHeaderRef },
       h('div', { className: 'pb-2 border-b border-gray-200 dark:border-gray-700' },
@@ -382,6 +383,7 @@ const DownloadsView = () => {
           key: 'add',
           variant: 'success',
           onClick: openAddDownloadModal,
+          'data-testid': 'emulebb-downloads-add',
           icon: 'plus'
         }, 'Add')
       )
@@ -478,18 +480,18 @@ const DownloadsView = () => {
       onClearAll: clearAllSelections,
       onExit: toggleSelectionMode
     },
-      hasCap('pause_resume') && h(Button, { variant: 'warning', onClick: handleBatchPause, icon: 'pause', iconSize: 14 }, 'Pause'),
-      hasCap('pause_resume') && h(Button, { variant: 'success', onClick: handleBatchResume, icon: 'play', iconSize: 14 }, 'Resume'),
+      hasCap('pause_resume') && h(Button, { variant: 'warning', onClick: handleBatchPause, icon: 'pause', iconSize: 14, 'data-testid': 'emulebb-downloads-pause-selected' }, 'Pause'),
+      hasCap('pause_resume') && h(Button, { variant: 'success', onClick: handleBatchResume, icon: 'play', iconSize: 14, 'data-testid': 'emulebb-downloads-resume-selected' }, 'Resume'),
       hasCap('pause_resume') && (!selectedNetworkTypes.has('bittorrent')
         ? h(Tooltip, { content: 'Stop is only available for BitTorrent downloads', position: 'top' },
-            h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, disabled: true }, 'Stop')
+            h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, disabled: true, 'data-testid': 'emulebb-downloads-stop-selected' }, 'Stop')
           )
-        : h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14 }, 'Stop')
+        : h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, 'data-testid': 'emulebb-downloads-stop-selected' }, 'Stop')
       ),
       hasCap('assign_categories') && h(Button, { variant: 'orange', onClick: handleBatchSetCategory, icon: 'folder', iconSize: 14 }, 'Edit Category'),
       hasCap('edit_downloads') && h(Button, { variant: 'cyan', onClick: handleBatchMove, icon: 'folderOpen', iconSize: 14 }, 'Move to...'),
       h(Button, { variant: batchCopyStatus === 'success' ? 'success' : 'purple', onClick: handleBatchExport, disabled: batchCopyStatus === 'success', icon: batchCopyStatus === 'success' ? 'check' : 'share', iconSize: 14 }, batchCopyStatus === 'success' ? 'Copied!' : 'Export Links'),
-      hasCap('remove_downloads') && h(Button, { variant: 'danger', onClick: handleBatchDeleteClick, icon: 'trash', iconSize: 14 }, 'Delete')
+      hasCap('remove_downloads') && h(Button, { variant: 'danger', onClick: handleBatchDeleteClick, icon: 'trash', iconSize: 14, 'data-testid': 'emulebb-downloads-delete-selected' }, 'Delete')
     ),
 
     // ========================================================================

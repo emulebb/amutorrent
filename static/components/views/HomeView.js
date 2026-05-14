@@ -151,7 +151,7 @@ const HomeView = () => {
   const onSearch = actions.search.perform;
   const loadingDashboard = dashboardState.loading;
 
-  return h('div', { className: 'flex-1 flex flex-col py-0 px-2 sm:px-0' },
+  return h('div', { className: 'flex-1 flex flex-col py-0 px-2 sm:px-0', 'data-testid': 'view-home' },
     // Desktop: Dashboard layout (shown when sidebar is visible at md+)
     h('div', { className: 'hidden md:block' },
       // Dashboard grid

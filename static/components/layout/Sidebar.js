@@ -18,6 +18,7 @@ const WarningNavButton = ({ currentView, onNavigate, icon, label, view, hasWarni
   const active = currentView === view;
   return h('button', {
     onClick: () => onNavigate(view),
+    'data-testid': `nav-${view}`,
     className: `flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all text-base sm:text-lg font-medium ${
       active
         ? 'bg-blue-600 text-white shadow-lg'

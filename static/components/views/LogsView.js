@@ -509,7 +509,7 @@ const LogsView = () => {
     return () => clearInterval(intervalId);
   }, [activeSections, getEffectiveInstance, fetchByKey]);
 
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-logs' },
     // App Logs (always shown, expands when no client logs exist)
     h(AppLogSection, {
       records: dataAppLogs,

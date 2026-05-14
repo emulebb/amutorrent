@@ -18,9 +18,10 @@ const { createElement: h } = React;
  * @param {boolean} active - Whether this button is currently active
  * @param {function} onNavigate - Navigation handler function
  */
-const NavButton = React.memo(({ icon, label, shortLabel, view, active, onNavigate }) => {
+const NavButton = React.memo(({ icon, label, shortLabel, view, active, onNavigate, testId }) => {
   return h('button', {
     onClick: () => onNavigate(view),
+    'data-testid': testId || `nav-${view}`,
     className: `flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all text-base sm:text-lg font-medium ${
       active
         ? 'bg-blue-600 text-white shadow-lg'

@@ -316,7 +316,7 @@ const ServersView = () => {
   // Register sticky toolbar for mobile scroll behavior
   const mobileHeaderRef = useStickyToolbar(mobileHeaderContent);
 
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-servers' },
     // Header with title + compact controls
     h('div', { className: 'flex items-center gap-2', ref: mobileHeaderRef },
       h('h2', { className: VIEW_TITLE_STYLES.desktop }, `Servers (${servers.length})`),

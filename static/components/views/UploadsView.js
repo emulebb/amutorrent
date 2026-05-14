@@ -302,7 +302,7 @@ const UploadsView = () => {
   // ============================================================================
   // RENDER
   // ============================================================================
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-uploads' },
     // Mobile header (xl:hidden)
     h('div', { className: 'xl:hidden', ref: mobileHeaderRef },
       h('div', { className: 'pb-2 border-b border-gray-200 dark:border-gray-700' },

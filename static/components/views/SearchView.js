@@ -48,7 +48,7 @@ const SearchView = () => {
     fetchPreviousSearchResults(effectiveEd2kInstance, { type: searchType });
   }, [fetchPreviousSearchResults, setSearchPreviousResultsLoaded, effectiveEd2kInstance, searchType]);
 
-  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0' },
+  return h('div', { className: 'space-y-2 sm:space-y-3 px-2 sm:px-0', 'data-testid': 'view-search' },
     // Search form (reusing QuickSearchWidget without border)
     h('div', null,
       h(QuickSearchWidget, {
