@@ -208,11 +208,24 @@ async function requestEmulebbVersion(host, port, apiKey, useSsl = false, basePat
   });
 }
 
+function unwrapEmulebbPayload(payload) {
+  if (payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object') {
+    return payload.data;
+  }
+  return payload;
+}
+
+function isEmulebbAppPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  const name = payload.appName || payload.name;
+  return name === 'eMule' || name === 'eMule BB';
+}
+
 async function testEmulebbConnection(host, port, apiKey, useSsl = false, basePath = '') {
   const result = { success: false, error: null, message: null };
   try {
-    const version = await requestEmulebbVersion(host, port, apiKey, useSsl, basePath);
-    if (version?.appName === 'eMule') {
+    const version = unwrapEmulebbPayload(await requestEmulebbVersion(host, port, apiKey, useSsl, basePath));
+    if (isEmulebbAppPayload(version)) {
       result.success = true;
       result.message = `Connected to eMule BB ${version.version || ''}`.trim();
     } else {

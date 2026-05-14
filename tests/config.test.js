@@ -2,12 +2,35 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
 const CONFIG_MODULE_PATH = require.resolve('../server/modules/config');
 const CONFIG_API_MODULE_PATH = require.resolve('../server/modules/configAPI');
+const configTester = require('../server/lib/configTester');
+
+async function withMockHttp(handler, run) {
+  const requests = [];
+  const server = http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', async () => {
+      requests.push({ method: req.method, url: req.url, headers: req.headers });
+      const response = await handler({ method: req.method, url: req.url });
+      res.writeHead(response.status || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(response.body ?? {}));
+    });
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address();
+    return await run({ port, requests });
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+}
 
 function reloadConfigWithEnv(env) {
   const previous = {};
@@ -86,6 +109,29 @@ test('configuration defaults expose eMule BB env metadata for startup wizard', (
   } finally {
     restore();
   }
+});
+
+test('eMule BB setup tester accepts wrapped v1 app contract', async () => {
+  await withMockHttp(({ method, url }) => {
+    assert.equal(method, 'GET');
+    assert.equal(url, '/api/v1/app');
+    return {
+      body: {
+        data: {
+          apiVersion: 'v1',
+          name: 'eMule',
+          version: '0.7.3 x64'
+        },
+        meta: { apiVersion: 'v1' }
+      }
+    };
+  }, async ({ port, requests }) => {
+    const result = await configTester.testEmulebbConnection('127.0.0.1', port, 'test-key');
+
+    assert.equal(result.success, true);
+    assert.equal(result.message, 'Connected to eMule BB 0.7.3 x64');
+    assert.equal(requests[0].headers['x-api-key'], 'test-key');
+  });
 });
 
 test('configuration accepts aMule and eMule BB as separate ED2K backends', () => {
