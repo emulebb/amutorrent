@@ -15,7 +15,7 @@ const { createElement: h } = React;
  * @param {function} onChange - Change handler
  * @param {boolean} disabled - Whether the checkbox is disabled (non-owned items)
  */
-const SelectionCheckbox = ({ checked, onChange, disabled }) => {
+const SelectionCheckbox = ({ checked, onChange, disabled, ...props }) => {
   return h('div', {
     className: 'flex items-center justify-center',
     onClick: (e) => e.stopPropagation() // Prevent row click when clicking checkbox area
@@ -25,7 +25,8 @@ const SelectionCheckbox = ({ checked, onChange, disabled }) => {
       checked,
       onChange: disabled ? undefined : onChange,
       disabled,
-      className: `w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 ${disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`
+      className: `w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 ${disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`,
+      ...props
     })
   );
 };

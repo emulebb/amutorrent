@@ -274,6 +274,9 @@ export const buildFileNameColumn = ({
     const nameEl = h('span', {
       className: `font-medium text-xs${isClickable ? ' cursor-pointer hover:underline decoration-dotted' : ''}${resolving ? ' italic text-gray-500 dark:text-gray-400' : ''}`,
       style: { wordBreak: 'break-all', overflowWrap: 'anywhere' },
+      'data-testid': item.hash ? 'item-file-name' : undefined,
+      'data-file-hash': item.hash || item.fileHash || undefined,
+      'data-instance-id': item.instanceId || undefined,
       onClick: isClickable ? () => onClick(item) : undefined
     }, name, resolving && h('span', { className: 'ml-1 text-[10px] text-gray-400 dark:text-gray-500 not-italic' }, '(resolving)'));
     return resolving ? h(Tooltip, { content: 'Name from history — waiting for client metadata', position: 'top' }, nameEl) : nameEl;

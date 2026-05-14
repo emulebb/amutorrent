@@ -67,6 +67,8 @@ const StatsTreeModal = ({ show, onClose }) => {
   return h(Portal, null,
     h('div', {
       className: 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50',
+      'data-testid': 'stats-tree-modal',
+      'data-instance-id': effectiveInstance,
       onClick: (e) => { if (e.target === e.currentTarget) onClose(); }
     },
     h('div', {
@@ -84,6 +86,7 @@ const StatsTreeModal = ({ show, onClose }) => {
         ),
         h('button', {
           onClick: onClose,
+          'data-testid': 'stats-tree-close',
           className: 'p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
         },
           h(Icon, { name: 'x', size: 20, className: 'text-gray-500 dark:text-gray-400' })

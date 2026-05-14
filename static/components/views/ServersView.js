@@ -168,6 +168,8 @@ const ServersView = () => {
       icon: 'power',
       iconSize: 14,
       onClick: () => handleServerAction(item._value, 'connect'),
+      'data-testid': 'emulebb-server-connect',
+      'data-server-address': item._value,
       title: 'Connect',
       className: 'h-8 text-sm'
     },
@@ -179,6 +181,8 @@ const ServersView = () => {
       icon: 'disconnect',
       iconSize: 14,
       onClick: () => handleServerAction(item._value, 'disconnect'),
+      'data-testid': 'emulebb-server-disconnect',
+      'data-server-address': item._value,
       title: 'Disconnect',
       className: 'h-8 text-sm'
     },
@@ -189,6 +193,8 @@ const ServersView = () => {
       icon: 'trash',
       iconSize: 14,
       onClick: () => handleServerAction(item._value, 'remove'),
+      'data-testid': 'emulebb-server-remove',
+      'data-server-address': item._value,
       title: 'Remove',
       className: 'h-8 text-sm'
     },
@@ -219,6 +225,8 @@ const ServersView = () => {
             icon: 'power',
             iconSize: 16,
             onClick: () => handleServerAction(item._value, 'connect'),
+            'data-testid': 'emulebb-server-connect',
+            'data-server-address': item._value,
             title: 'Connect',
             className: 'w-8 h-8'
           }),
@@ -227,6 +235,8 @@ const ServersView = () => {
             icon: 'disconnect',
             iconSize: 16,
             onClick: () => handleServerAction(item._value, 'disconnect'),
+            'data-testid': 'emulebb-server-disconnect',
+            'data-server-address': item._value,
             title: 'Disconnect',
             className: 'w-8 h-8'
           }),
@@ -235,6 +245,8 @@ const ServersView = () => {
             icon: 'trash',
             iconSize: 16,
             onClick: () => handleServerAction(item._value, 'remove'),
+            'data-testid': 'emulebb-server-remove',
+            'data-server-address': item._value,
             title: 'Remove',
             className: 'w-8 h-8'
           })
@@ -288,6 +300,7 @@ const ServersView = () => {
       variant: 'primary',
       onClick: onRefresh,
       disabled: !dataLoaded.servers,
+      'data-testid': 'emulebb-servers-refresh',
       icon: dataLoaded.servers ? 'refresh' : null
     }, dataLoaded.servers ? 'Refresh' : h('span', { className: 'flex items-center gap-2' }, h(LoadingSpinner, { size: 'sm' }), 'Loading...')),
   [onRefresh, dataLoaded.servers]);

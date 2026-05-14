@@ -127,6 +127,7 @@ const FileCategoryModal = ({
   return h(Portal, null,
     h('div', {
       className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4',
+      'data-testid': 'file-category-modal',
       onClick: onClose
     },
       h('div', {
@@ -155,6 +156,7 @@ const FileCategoryModal = ({
         h(Select, {
           value: useCustom ? '__custom__' : selectedCategory,
           onChange: handleCategoryChange,
+          'data-testid': 'file-category-select',
           options: [
             ...sortedCategories.map(cat => ({
               value: cat.name || cat.title,
@@ -170,6 +172,7 @@ const FileCategoryModal = ({
           value: customCategory,
           onChange: (e) => setCustomCategory(e.target.value),
           placeholder: 'Enter new category name',
+          'data-testid': 'file-category-custom-input',
           autoFocus: true,
           className: 'w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm ' +
             'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ' +
@@ -241,10 +244,12 @@ const FileCategoryModal = ({
       h('div', { className: 'px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end' },
         h(Button, {
           variant: 'secondary',
+          'data-testid': 'file-category-cancel',
           onClick: onClose
         }, 'Cancel'),
         h(Button, {
           variant: 'primary',
+          'data-testid': 'file-category-submit',
           onClick: handleSubmit,
           disabled: isSubmitDisabled || permissionCheck.loading
         }, permissionCheck.loading

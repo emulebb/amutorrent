@@ -277,6 +277,10 @@ const Table = ({
             return h('tr', {
               key: getKey(item, idx),
               className: `${getTableRowClass(idx, extraClassName)}${hoverActions ? ' group' : ''}${onRowClick ? ' cursor-pointer' : ''}`,
+              'data-testid': item.hash ? `item-row-${item.hash}` : undefined,
+              'data-file-hash': item.hash || item.fileHash || undefined,
+              'data-instance-id': item.instanceId || undefined,
+              'data-client-type': item.client || item.clientType || undefined,
               onClick: onRowClick ? () => onRowClick(item) : undefined,
               onContextMenu: onRowContextMenu ? (e) => onRowContextMenu(e, item) : undefined
             },

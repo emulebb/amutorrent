@@ -289,9 +289,10 @@ const StatisticsView = () => {
       h(Button, {
         variant: 'secondary',
         onClick: () => setShowStatsTreeModal(true),
+        'data-testid': 'stats-tree-open',
         className: 'flex items-center gap-2'
       },
-        h(ClientIcon, { clientType: 'amule', size: 18 }),
+        h(ClientIcon, { clientType: 'ed2k', size: 18 }),
         'Open ED2K Statistics Tree'
       )
     ),

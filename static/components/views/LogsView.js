@@ -40,6 +40,10 @@ const CLIENT_LOG_SECTIONS = {
   amule: [
     { key: 'logs', title: 'aMule Logs', dataKey: 'dataLogs', loadedKey: 'logs', fetchKey: 'fetchLogs' },
     { key: 'serverInfo', title: 'ED2K Server Info', dataKey: 'dataServerInfo', loadedKey: 'serverInfo', fetchKey: 'fetchServerInfo' }
+  ],
+  emulebb: [
+    { key: 'emulebbLogs', title: 'eMule BB Logs', dataKey: 'dataLogs', loadedKey: 'logs', fetchKey: 'fetchLogs' },
+    { key: 'emulebbServerInfo', title: 'eMule BB Server Info', dataKey: 'dataServerInfo', loadedKey: 'serverInfo', fetchKey: 'fetchServerInfo' }
   ]
 };
 
@@ -113,6 +117,7 @@ const formatFullLocal = (iso) => {
 const LogSection = ({ title, data, loaded, maxHeightClass, instances, hasMulti, selectedInstance, onInstanceChange, fontSize }) => {
   const ref = useRef(null);
   const userScrolledAway = useRef(false);
+  const sectionId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   const handleScroll = useCallback(() => {
     if (!ref.current) return;
@@ -129,7 +134,7 @@ const LogSection = ({ title, data, loaded, maxHeightClass, instances, hasMulti, 
     }
   }, [data, loaded, fontSize]);
 
-  return h('div', { className: 'bg-gray-50 dark:bg-gray-700 rounded-lg p-3' },
+  return h('div', { className: 'bg-gray-50 dark:bg-gray-700 rounded-lg p-3', 'data-testid': `client-log-section-${sectionId}` },
     h('h3', { className: 'text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2' },
       title,
       hasMulti && h('select', {
@@ -141,6 +146,7 @@ const LogSection = ({ title, data, loaded, maxHeightClass, instances, hasMulti, 
     h('div', {
       ref,
       onScroll: handleScroll,
+      'data-testid': `client-log-content-${sectionId}`,
       className: `bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 p-3 ${maxHeightClass} overflow-y-auto log-text`
     },
       (!loaded && !data)
@@ -304,7 +310,7 @@ const AppLogSection = ({ records, sources, instances, fetchAppLogs, loaded, maxH
     ? `${filteredRecords.length}/${records.length}`
     : `${filteredRecords.length}`;
 
-  return h('div', { className: 'bg-gray-50 dark:bg-gray-700 rounded-lg p-3' },
+  return h('div', { className: 'bg-gray-50 dark:bg-gray-700 rounded-lg p-3', 'data-testid': 'app-logs-section' },
 
     // Mobile filter row (xl:hidden) — uses the same patterns as Downloads/
     // Shared mobile headers: an ExpandableSearch + MobileFilterButton open
@@ -360,6 +366,7 @@ const AppLogSection = ({ records, sources, instances, fetchAppLogs, loaded, maxH
     h('div', {
       ref,
       onScroll: handleScroll,
+      'data-testid': 'app-logs-records',
       className: `bg-white dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-600 ${maxHeightClass} overflow-y-auto font-mono text-xs`
     },
       (!loaded && !records?.length)

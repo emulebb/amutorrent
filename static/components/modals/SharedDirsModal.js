@@ -426,6 +426,8 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
     h(Portal, null,
     h('div', {
       className: 'fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50',
+      'data-testid': 'shared-dirs-modal',
+      'data-instance-id': instanceId,
       onClick: (e) => e.target === e.currentTarget && !dirty && onClose()
     },
       h('div', {
@@ -439,6 +441,7 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
           ),
           h('button', {
             onClick: onClose,
+            'data-testid': 'shared-dirs-close',
             className: 'p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }, h(Icon, { name: 'x', size: 20 }))
         ),
@@ -478,17 +481,20 @@ const SharedDirsModal = ({ show, onClose, initialInstanceId = null }) => {
               variant: 'secondary',
               onClick: handleRescan,
               disabled: isWorking,
+              'data-testid': 'shared-dirs-rescan',
               icon: 'refresh'
             }, reloading ? 'Rescanning...' : 'Rescan & Reload')
           ),
           h('div', { className: 'flex gap-3' },
             h(Button, {
               variant: 'secondary',
+              'data-testid': 'shared-dirs-cancel',
               onClick: onClose
             }, 'Cancel'),
             h(Button, {
               variant: 'success',
               onClick: handleSave,
+              'data-testid': 'shared-dirs-save',
               disabled: !dirty || isWorking || roots.length === 0
             }, saving ? 'Saving...' : 'Save')
           )

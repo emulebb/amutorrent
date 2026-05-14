@@ -7,7 +7,7 @@
  */
 
 import React from 'https://esm.sh/react@18.2.0';
-import { Table, ContextMenu, MoreButton, Button, Select, TrackerMultiSelect, IconButton, SelectionModeSection, EmptyState, DownloadMobileCard, MobileStatusTabs, MobileFilterPills, MobileFilterSheet, MobileFilterButton, MobileSortButton, ExpandableSearch, FilterInput, SelectionCheckbox, Tooltip, Icon } from '../common/index.js';
+import { Table, ContextMenu, MoreButton, Button, Select, TrackerMultiSelect, IconButton, SelectionModeSection, EmptyState, DownloadMobileCard, MobileStatusTabs, MobileFilterPills, MobileFilterSheet, MobileFilterButton, MobileSortButton, ExpandableSearch, FilterInput, SelectionCheckbox, Icon } from '../common/index.js';
 import { getRowHighlightClass, DEFAULT_SORT_CONFIG, DEFAULT_SECONDARY_SORT_CONFIG, formatTitleCount, buildSpeedColumn, buildSizeColumn, buildFileNameColumn, buildStatusColumn, buildCategoryColumn, buildProgressColumn, buildSourcesColumn, buildAddedAtColumn, buildETAColumn, buildDownloadPathColumn, VIEW_TITLE_STYLES, createCategoryLabelFilter, createTrackerFilter } from '../../utils/index.js';
 import { itemKey } from '../../utils/itemKey.js';
 import { useViewDeleteModal, useBatchExport, useViewFilters, usePageSelection, useItemActions, useCategoryFilterOptions, useItemContextMenu, useColumnConfig, getSecondarySortConfig, useFileInfoModal, useFileCategoryModal, useFileMoveModal, useFileRenameModal } from '../../hooks/index.js';
@@ -157,8 +157,6 @@ const DownloadsView = () => {
   const {
     handleDeleteClick,
     handleBatchDeleteClick,
-    selectedClientTypes,
-    selectedNetworkTypes,
     DeleteModalElement
   } = useViewDeleteModal({
     dataArray: downloads,
@@ -306,6 +304,7 @@ const DownloadsView = () => {
             icon: selectionMode ? 'x' : 'fileCheck',
             iconSize: 18,
             onClick: toggleSelectionMode,
+            'data-testid': 'emulebb-downloads-select-mode',
             title: selectionMode ? 'Exit Selection Mode' : 'Select Files'
           }),
           hasCap('add_downloads') && h(IconButton, {
@@ -377,6 +376,7 @@ const DownloadsView = () => {
           key: 'select',
           variant: selectionMode ? 'danger' : 'purple',
           onClick: toggleSelectionMode,
+          'data-testid': 'emulebb-downloads-select-mode',
           icon: selectionMode ? 'x' : 'fileCheck'
         }, selectionMode ? 'Exit Selection Mode' : 'Select Files'),
         hasCap('add_downloads') && h(Button, {
@@ -417,7 +417,10 @@ const DownloadsView = () => {
           return h(SelectionCheckbox, {
             checked: selectedFiles.has(key),
             onChange: canSelect ? () => toggleFileSelection(key) : undefined,
-            disabled: !canSelect
+            disabled: !canSelect,
+            'data-testid': 'emulebb-downloads-select-checkbox',
+            'data-file-hash': item.hash,
+            'data-instance-id': item.instanceId
           });
         }
         return h(MoreButton, {
@@ -482,13 +485,8 @@ const DownloadsView = () => {
     },
       hasCap('pause_resume') && h(Button, { variant: 'warning', onClick: handleBatchPause, icon: 'pause', iconSize: 14, 'data-testid': 'emulebb-downloads-pause-selected' }, 'Pause'),
       hasCap('pause_resume') && h(Button, { variant: 'success', onClick: handleBatchResume, icon: 'play', iconSize: 14, 'data-testid': 'emulebb-downloads-resume-selected' }, 'Resume'),
-      hasCap('pause_resume') && (!selectedNetworkTypes.has('bittorrent')
-        ? h(Tooltip, { content: 'Stop is only available for BitTorrent downloads', position: 'top' },
-            h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, disabled: true, 'data-testid': 'emulebb-downloads-stop-selected' }, 'Stop')
-          )
-        : h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, 'data-testid': 'emulebb-downloads-stop-selected' }, 'Stop')
-      ),
-      hasCap('assign_categories') && h(Button, { variant: 'orange', onClick: handleBatchSetCategory, icon: 'folder', iconSize: 14 }, 'Edit Category'),
+      hasCap('pause_resume') && h(Button, { variant: 'secondary', onClick: handleBatchStop, icon: 'stop', iconSize: 14, 'data-testid': 'emulebb-downloads-stop-selected' }, 'Stop'),
+      hasCap('assign_categories') && h(Button, { variant: 'orange', onClick: handleBatchSetCategory, icon: 'folder', iconSize: 14, 'data-testid': 'emulebb-downloads-category-selected' }, 'Edit Category'),
       hasCap('edit_downloads') && h(Button, { variant: 'cyan', onClick: handleBatchMove, icon: 'folderOpen', iconSize: 14 }, 'Move to...'),
       h(Button, { variant: batchCopyStatus === 'success' ? 'success' : 'purple', onClick: handleBatchExport, disabled: batchCopyStatus === 'success', icon: batchCopyStatus === 'success' ? 'check' : 'share', iconSize: 14 }, batchCopyStatus === 'success' ? 'Copied!' : 'Export Links'),
       hasCap('remove_downloads') && h(Button, { variant: 'danger', onClick: handleBatchDeleteClick, icon: 'trash', iconSize: 14, 'data-testid': 'emulebb-downloads-delete-selected' }, 'Delete')

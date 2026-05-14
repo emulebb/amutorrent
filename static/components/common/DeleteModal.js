@@ -85,6 +85,7 @@ const DeleteModal = ({
   return h(Portal, null,
     h('div', {
       className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4',
+      'data-testid': 'delete-confirm-modal',
       onClick: onCancel
     },
       h('div', {
@@ -142,6 +143,7 @@ const DeleteModal = ({
             checked: deleteFiles && canDeleteFiles && permissionWarnings.length === 0,
             onChange: (e) => canDeleteFiles && permissionWarnings.length === 0 && setDeleteFiles(e.target.checked),
             disabled: !canDeleteFiles || isCheckingPermissions || permissionWarnings.length > 0,
+            'data-testid': 'delete-confirm-delete-files',
             className: 'w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed'
           }),
           h('span', { className: 'text-sm text-gray-700 dark:text-gray-300' },
@@ -170,10 +172,12 @@ const DeleteModal = ({
       h('div', { className: 'px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end' },
         h(Button, {
           variant: 'secondary',
+          'data-testid': 'delete-confirm-cancel',
           onClick: onCancel
         }, 'Cancel'),
         h(Button, {
           variant: 'danger',
+          'data-testid': 'delete-confirm-submit',
           // Disable when checking permissions, when shared-only files can't be deleted,
           // or when mixed shared has file not found warnings (can't proceed without all files)
           disabled: isCheckingPermissions || (isSharedOnly && !canDeleteFiles) || (isMixedShared && permissionWarnings.length > 0),

@@ -329,6 +329,10 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
   return h(Portal, null,
     h('div', {
       className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 sm:p-4',
+      'data-testid': 'file-info-modal',
+      'data-file-hash': liveItem.hash,
+      'data-instance-id': liveItem.instanceId,
+      'data-variant': variant,
       onClick: onClose
     },
     h('div', {
@@ -499,6 +503,7 @@ const FileInfoModal = ({ hash, instanceId, onClose }) => {
       h('div', { className: 'p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end' },
         h(Button, {
           variant: 'secondary',
+          'data-testid': 'file-info-close',
           onClick: onClose
         }, 'Close')
       )

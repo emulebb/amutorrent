@@ -38,8 +38,8 @@ const SharedView = () => {
   // Ownership check: user can mutate item if they have edit_all_downloads or own it
   const canMutateItem = useCallback((item) => hasCap('edit_all_downloads') || item.ownedByMe !== false, [hasCap]);
 
-  const amuleConfigEnabled = useMemo(() => {
-    return Object.values(instances).some(inst => inst.type === 'amule' && inst.connected);
+  const ed2kConfigEnabled = useMemo(() => {
+    return Object.values(instances).some(inst => ['amule', 'emulebb'].includes(inst.type) && inst.connected);
   }, [instances]);
 
   const [showSharedDirsModal, setShowSharedDirsModal] = useState(false);
@@ -365,14 +365,15 @@ const SharedView = () => {
           options: trackerOptions,
           title: 'Filter by tracker'
         }),
-        amuleConfigEnabled && h(Button, {
+        ed2kConfigEnabled && h(Button, {
           key: 'shared-dirs',
           variant: 'success',
           onClick: () => setShowSharedDirsModal(true),
           disabled: !dataLoaded.items,
+          'data-testid': 'shared-dirs-open',
           title: 'Manage Shared Directories'
         },
-          dataLoaded.items && h(ClientIcon, { client: 'amule', size: 16, title: '' }),
+          dataLoaded.items && h(ClientIcon, { client: 'ed2k', size: 16, title: '' }),
           dataLoaded.items ? 'Manage Shared Dirs' : h('span', { className: 'flex items-center gap-2' }, h(LoadingSpinner, { size: 'sm' }), 'Loading...')
         ),
         hasAnyMutationCap && h(Button, {
