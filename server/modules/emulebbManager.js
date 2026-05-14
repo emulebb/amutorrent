@@ -160,6 +160,43 @@ function kibPerSecondToBytesPerSecond(value) {
   return Math.round(parseFiniteNumber(value, 0) * 1024);
 }
 
+function formatBoolean(value, trueLabel = 'Yes', falseLabel = 'No', unknownLabel = 'Unknown') {
+  if (value === true) return trueLabel;
+  if (value === false) return falseLabel;
+  return unknownLabel;
+}
+
+function formatRateKiBps(value) {
+  return `${parseFiniteNumber(value, 0).toFixed(1)} KiB/s`;
+}
+
+function formatBytes(value) {
+  const bytes = parseFiniteNumber(value, 0);
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let amount = bytes;
+  let unitIndex = 0;
+  while (Math.abs(amount) >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024;
+    unitIndex += 1;
+  }
+  const digits = unitIndex === 0 ? 0 : 1;
+  return `${amount.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function statsTreeLeaf(label, value) {
+  return {
+    _value: `${label}: %s`,
+    EC_TAG_STAT_NODE_VALUE: value
+  };
+}
+
+function statsTreeBranch(label, children) {
+  return {
+    _value: label,
+    EC_TAG_STATTREE_NODE: children.filter(Boolean)
+  };
+}
+
 function computePartCompletion(availableParts, partCount) {
   if (availableParts == null || partCount == null || partCount <= 0) return null;
   return Math.max(0, Math.min(100, Math.round((availableParts * 100) / partCount)));
@@ -507,6 +544,53 @@ class EmulebbManager extends BaseClientManager {
     if (!this.client) return {};
     const status = await this._request('GET', '/api/v1/status');
     return status || {};
+  }
+
+  /**
+   * Build a statistics tree compatible with the aMule EC stats-tree renderer.
+   *
+   * eMule BB exposes structured REST status fields rather than an EC tree, so
+   * this adapter keeps the public aMuTorrent endpoint useful for both ED2K
+   * backends while preserving the existing UI data contract.
+   *
+   * @returns {Promise<Object>} aMuTorrent statistics tree payload
+   */
+  async getStatsTree() {
+    if (!this.client) throw new Error('eMule BB not connected');
+    const status = await this.getStats();
+    const stats = status?.stats || {};
+    const servers = status?.servers || status?.server || {};
+    const activeServer = servers.active || servers.currentServer || {};
+    const kad = status?.kad || {};
+
+    return {
+      EC_TAG_STATTREE_NODE: statsTreeBranch('eMule BB', [
+        statsTreeBranch('Connection', [
+          statsTreeLeaf('ED2K', formatBoolean(stats.ed2kConnected ?? servers.connected ?? activeServer.connected, 'Connected', 'Disconnected')),
+          statsTreeLeaf('ED2K ID', formatBoolean(stats.ed2kHighId ?? status.ed2kHighId, 'High ID', 'Low ID')),
+          statsTreeLeaf('Server', activeServer.name || activeServer.address || 'None'),
+          statsTreeLeaf('Server address', activeServer.address || 'Unknown'),
+          statsTreeLeaf('Kad', formatBoolean(stats.kadConnected ?? kad.connected, 'Connected', 'Disconnected')),
+          statsTreeLeaf('Kad firewalled', formatBoolean(stats.kadFirewalled ?? kad.firewalled)),
+          statsTreeLeaf('Kad running', formatBoolean(stats.kadRunning ?? kad.running))
+        ]),
+        statsTreeBranch('Transfer rates', [
+          statsTreeLeaf('Download', formatRateKiBps(stats.downloadSpeedKiBps ?? stats.downloadSpeed)),
+          statsTreeLeaf('Upload', formatRateKiBps(stats.uploadSpeedKiBps ?? stats.uploadSpeed))
+        ]),
+        statsTreeBranch('Session totals', [
+          statsTreeLeaf('Downloaded', formatBytes(stats.sessionDownloadedBytes ?? stats.sessionDownloaded)),
+          statsTreeLeaf('Uploaded', formatBytes(stats.sessionUploadedBytes ?? stats.sessionUploaded))
+        ]),
+        statsTreeBranch('Queues', [
+          statsTreeLeaf('Downloads', parseFiniteNumber(stats.downloadCount, 0)),
+          statsTreeLeaf('Active uploads', parseFiniteNumber(stats.activeUploads, 0)),
+          statsTreeLeaf('Waiting uploads', parseFiniteNumber(stats.waitingUploads, 0)),
+          statsTreeLeaf('Shared hashing active', formatBoolean(stats.sharedHashingActive)),
+          statsTreeLeaf('Shared hashing queue', parseFiniteNumber(stats.sharedHashingCount, 0))
+        ])
+      ])
+    };
   }
 
   extractMetrics(rawStats) {

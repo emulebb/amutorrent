@@ -108,6 +108,63 @@ test('eMule BB manager normalizes native REST network status', () => {
   });
 });
 
+test('eMule BB manager adapts REST status into stats tree contract', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/status') {
+      return {
+        body: {
+          stats: {
+            ed2kConnected: true,
+            ed2kHighId: true,
+            kadConnected: false,
+            kadRunning: true,
+            kadFirewalled: true,
+            downloadSpeedKiBps: 12.25,
+            uploadSpeedKiBps: 3.5,
+            sessionDownloadedBytes: 2097152,
+            sessionUploadedBytes: 1048576,
+            downloadCount: 4,
+            activeUploads: 2,
+            waitingUploads: 7,
+            sharedHashingActive: false,
+            sharedHashingCount: 1
+          },
+          servers: {
+            connected: true,
+            active: { name: 'Peerates', address: '1.2.3.4:4661' }
+          },
+          kad: {
+            running: true,
+            connected: false,
+            firewalled: true
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const tree = await manager.getStatsTree();
+    const root = tree.EC_TAG_STATTREE_NODE;
+    assert.equal(root._value, 'eMule BB');
+    assert.equal(root.EC_TAG_STATTREE_NODE[0]._value, 'Connection');
+    assert.deepEqual(root.EC_TAG_STATTREE_NODE[0].EC_TAG_STATTREE_NODE[0], {
+      _value: 'ED2K: %s',
+      EC_TAG_STAT_NODE_VALUE: 'Connected'
+    });
+    assert.deepEqual(root.EC_TAG_STATTREE_NODE[1].EC_TAG_STATTREE_NODE[0], {
+      _value: 'Download: %s',
+      EC_TAG_STAT_NODE_VALUE: '12.3 KiB/s'
+    });
+    assert.deepEqual(root.EC_TAG_STATTREE_NODE[2].EC_TAG_STATTREE_NODE[0], {
+      _value: 'Downloaded: %s',
+      EC_TAG_STAT_NODE_VALUE: '2.0 MiB'
+    });
+  });
+});
+
 test('eMule BB manager unwraps native v1 success and error envelopes', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {

@@ -29,7 +29,7 @@ const StatsTreeModal = ({ show, onClose }) => {
     selectedId: effectiveInstance,
     selectedInstance: selectedObj,
     selectInstance
-  } = useEd2kInstanceSelector({ clientTypes: ['amule'] });
+  } = useEd2kInstanceSelector({ clientTypes: ['amule', 'emulebb'] });
 
   // Persist expanded nodes across open/close
   const [expandedNodes, setExpandedNodes] = useState({});
@@ -77,7 +77,7 @@ const StatsTreeModal = ({ show, onClose }) => {
         className: 'flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700'
       },
         h('div', { className: 'flex items-center gap-2' },
-          h(ClientIcon, { client: 'amule', size: 24 }),
+          h(ClientIcon, { client: selectedObj?.type || 'ed2k', size: 24 }),
           h('h2', { className: 'text-lg font-semibold text-gray-800 dark:text-gray-100' },
             instanceName ? `ED2K Statistics Tree \u2014 ${instanceName}` : 'ED2K Statistics Tree'
           )

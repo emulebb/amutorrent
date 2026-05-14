@@ -63,14 +63,13 @@ const StatisticsView = () => {
     shouldRenderCharts
   } = useClientChartConfig();
 
-  // Stats tree is currently provided by aMule's EC API.
-  const amuleConnectedAndEnabled = useMemo(() => {
+  // Stats tree is provided by connected ED2K backends.
+  const ed2kStatsTreeConnectedAndEnabled = useMemo(() => {
     return Object.entries(instances)
-      .some(([id, inst]) => inst.type === 'amule' && inst.connected && !disabledInstances.has(id));
+      .some(([id, inst]) => ['amule', 'emulebb'].includes(inst.type) && inst.connected && !disabledInstances.has(id));
   }, [instances, disabledInstances]);
 
-  // Show ED2K stats tree button only when aMule is connected and enabled in filter.
-  const showAmuleStatsTree = amuleConnectedAndEnabled && isEd2kEnabled;
+  const showEd2kStatsTree = ed2kStatsTreeConnectedAndEnabled && isEd2kEnabled;
 
   // State for stats tree modal
   const [showStatsTreeModal, setShowStatsTreeModal] = useState(false);
@@ -285,8 +284,8 @@ const StatisticsView = () => {
       )
     ),
 
-    // ED2K Statistics Tree button (only when aMule is connected and enabled)
-    showAmuleStatsTree && h('div', { className: 'flex items-center justify-center pt-2' },
+    // ED2K Statistics Tree button
+    showEd2kStatsTree && h('div', { className: 'flex items-center justify-center pt-2' },
       h(Button, {
         variant: 'secondary',
         onClick: () => setShowStatsTreeModal(true),
