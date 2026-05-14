@@ -50,7 +50,7 @@ function createManager(port) {
 test('eMule BB manager initializes, caches categories, and normalizes transfers', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
-      return { body: { version: '0.72a', capabilities: { categoriesRead: true } } };
+      return { body: { version: '0.72a', lifecycle: { state: 'running', startupComplete: true, coreReady: true, sharedFilesReady: true, acceptingRest: true, acceptingMutations: true, shutdownInProgress: false }, capabilities: { categoriesRead: true } } };
     }
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }, { id: 2, name: 'Movies' }] } };
@@ -68,6 +68,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   }, async ({ port }) => {
     const manager = createManager(port);
     assert.equal(await manager.initClient(), true);
+    assert.equal(manager.client.lifecycle.state, 'running');
 
     const data = await manager.fetchData();
     assert.equal(data.downloads.length, 1);
@@ -93,7 +94,7 @@ test('eMule BB manager preserves shared files while native startup cache warms',
       if (snapshotCount === 1) {
         return {
           body: {
-            status: { stats: { sharedFilesReady: true, sharedHashingActive: false, sharedHashingCount: 0 }, sharedStartupCache: { loaded: true, ready: true } },
+            status: { lifecycle: { state: 'running', startupComplete: true, coreReady: true, sharedFilesReady: true, acceptingRest: true, acceptingMutations: true, shutdownInProgress: false }, stats: { sharedFilesReady: true, sharedHashingActive: false, sharedHashingCount: 0 }, sharedStartupCache: { loaded: true, ready: true } },
             transfers: [],
             sharedFiles: [{ hash: 'ABCDEFABCDEFABCDEFABCDEFABCDEFAB', name: 'seed.bin', sizeBytes: 42 }],
             uploads: []
@@ -102,7 +103,7 @@ test('eMule BB manager preserves shared files while native startup cache warms',
       }
       return {
         body: {
-          status: { stats: { sharedFilesReady: false, sharedHashingActive: true, sharedHashingCount: 2 }, sharedStartupCache: { loaded: false, ready: false, rejected: false } },
+          status: { lifecycle: { state: 'starting', startupComplete: false, coreReady: false, sharedFilesReady: false, acceptingRest: true, acceptingMutations: false, shutdownInProgress: false }, stats: { sharedFilesReady: false, sharedHashingActive: true, sharedHashingCount: 2 }, sharedStartupCache: { loaded: false, ready: false, rejected: false } },
           transfers: [],
           sharedFiles: [],
           uploads: []
@@ -122,6 +123,8 @@ test('eMule BB manager preserves shared files while native startup cache warms',
     assert.equal(warming.sharedFiles.length, 1);
     assert.equal(warming.sharedFiles[0].hash, 'abcdefabcdefabcdefabcdefabcdefab');
     assert.equal(warming.nativeStatus.sharedFilesReady, false);
+    assert.equal(warming.nativeStatus.lifecycle.state, 'starting');
+    assert.equal(warming.nativeStatus.lifecycle.acceptingMutations, false);
     assert.equal(warming.nativeStatus.sharedHashingActive, true);
     assert.equal(warming.nativeStatus.sharedHashingCount, 2);
   });
@@ -152,6 +155,44 @@ test('eMule BB manager treats legacy SERVICE_BUSY shared hashing as warmup', asy
     assert.equal(data.sharedFiles[0].hash, 'cached');
     assert.equal(data.nativeStatus.sharedFilesReady, false);
     assert.equal(data.nativeStatus.sharedHashingActive, true);
+  });
+});
+
+test('eMule BB manager avoids native mutations while lifecycle is not accepting them', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/app') {
+      return {
+        body: {
+          version: '0.72a',
+          lifecycle: {
+            state: 'starting',
+            startupComplete: false,
+            coreReady: false,
+            sharedFilesReady: false,
+            acceptingRest: true,
+            acceptingMutations: false,
+            shutdownInProgress: false
+          },
+          capabilities: { categoriesRead: true }
+        }
+      };
+    }
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'POST') {
+      throw new Error('mutation should not be sent');
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    assert.equal(await manager.initClient(), true);
+
+    await assert.rejects(
+      manager.pause('abcdefabcdefabcdefabcdefabcdefab'),
+      /lifecycle starting is not accepting mutations/
+    );
+    assert.equal(requests.some(request => request.method === 'POST'), false);
   });
 });
 
@@ -205,6 +246,15 @@ test('eMule BB manager adapts REST status into stats tree contract', async () =>
             sharedHashingActive: false,
             sharedHashingCount: 1
           },
+          lifecycle: {
+            state: 'running',
+            startupComplete: true,
+            coreReady: true,
+            sharedFilesReady: true,
+            acceptingRest: true,
+            acceptingMutations: true,
+            shutdownInProgress: false
+          },
           servers: {
             connected: true,
             active: { name: 'Peerates', address: '1.2.3.4:4661' }
@@ -227,6 +277,10 @@ test('eMule BB manager adapts REST status into stats tree contract', async () =>
     assert.equal(root._value, 'eMule BB');
     assert.equal(root.EC_TAG_STATTREE_NODE[0]._value, 'Connection');
     assert.deepEqual(root.EC_TAG_STATTREE_NODE[0].EC_TAG_STATTREE_NODE[0], {
+      _value: 'Lifecycle: %s',
+      EC_TAG_STAT_NODE_VALUE: 'running'
+    });
+    assert.deepEqual(root.EC_TAG_STATTREE_NODE[0].EC_TAG_STATTREE_NODE[1], {
       _value: 'ED2K: %s',
       EC_TAG_STAT_NODE_VALUE: 'Connected'
     });

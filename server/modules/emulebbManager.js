@@ -166,6 +166,26 @@ function formatBoolean(value, trueLabel = 'Yes', falseLabel = 'No', unknownLabel
   return unknownLabel;
 }
 
+function normalizeLifecycle(lifecycle) {
+  if (!lifecycle || typeof lifecycle !== 'object') return null;
+  const state = String(lifecycle.state || '').toLowerCase();
+  if (!state) return null;
+  return {
+    state,
+    startupComplete: lifecycle.startupComplete === true,
+    coreReady: lifecycle.coreReady === true,
+    sharedFilesReady: lifecycle.sharedFilesReady === true,
+    acceptingRest: lifecycle.acceptingRest !== false,
+    acceptingMutations: lifecycle.acceptingMutations === true,
+    shutdownInProgress: lifecycle.shutdownInProgress === true
+  };
+}
+
+function formatLifecycleState(lifecycle) {
+  const state = normalizeLifecycle(lifecycle)?.state || 'unknown';
+  return state === 'shuttingdown' ? 'shutting down' : state;
+}
+
 function formatRateKiBps(value) {
   return `${parseFiniteNumber(value, 0).toFixed(1)} KiB/s`;
 }
@@ -399,6 +419,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async _request(method, path, body = null) {
+    this._ensureLifecycleAllowsMutation(method);
     const cfg = this._clientConfig || {};
     const url = new URL(`${this._baseUrl()}${path}`);
     const transport = url.protocol === 'https:' ? https : http;
@@ -434,7 +455,11 @@ class EmulebbManager extends BaseClientManager {
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
             const { code, message } = normalizeErrorPayload(payload, res.statusCode, text);
-            return reject(new Error(`eMule BB ${code}: ${message}`));
+            const err = new Error(`eMule BB ${code}: ${message}`);
+            err.code = code;
+            err.statusCode = res.statusCode;
+            if (code === 'EMULE_UNAVAILABLE') this._markLifecycleUnavailable();
+            return reject(err);
           }
           if (payload == null) {
             return reject(new Error('eMule BB returned an empty JSON response'));
@@ -449,13 +474,39 @@ class EmulebbManager extends BaseClientManager {
     });
   }
 
+  _ensureLifecycleAllowsMutation(method) {
+    if (!['POST', 'PATCH', 'DELETE'].includes(String(method || '').toUpperCase())) return;
+    const lifecycle = normalizeLifecycle(this.client?.lifecycle || this.client?.version?.lifecycle);
+    if (!lifecycle || lifecycle.acceptingMutations) return;
+    const err = new Error(`eMule BB lifecycle ${formatLifecycleState(lifecycle)} is not accepting mutations`);
+    err.code = 'EMULE_UNAVAILABLE';
+    throw err;
+  }
+
+  _markLifecycleUnavailable() {
+    if (!this.client) return;
+    const lifecycle = {
+      state: 'shuttingdown',
+      startupComplete: true,
+      coreReady: false,
+      sharedFilesReady: false,
+      acceptingRest: false,
+      acceptingMutations: false,
+      shutdownInProgress: true
+    };
+    this.client.lifecycle = lifecycle;
+    if (this.client.version && typeof this.client.version === 'object') {
+      this.client.version.lifecycle = lifecycle;
+    }
+  }
+
   async initClient() {
     if (!this.isEnabled()) return false;
     if (this.connectionInProgress) return false;
     this.connectionInProgress = true;
     try {
       const version = await this._request('GET', '/api/v1/app');
-      this.client = { version };
+      this.client = { version, lifecycle: normalizeLifecycle(version?.lifecycle) };
       await this._refreshCategories().catch(err => {
         this.warn(`Failed to fetch eMule BB categories: ${logger.errorDetail(err)}`);
       });
@@ -499,6 +550,7 @@ class EmulebbManager extends BaseClientManager {
           sharedFiles: this.lastSharedFiles.slice(),
           uploads: [],
           nativeStatus: {
+            lifecycle: normalizeLifecycle(this.client?.lifecycle || this.client?.version?.lifecycle),
             sharedFilesReady: false,
             sharedHashingActive: true,
             sharedHashingCount: null,
@@ -511,6 +563,10 @@ class EmulebbManager extends BaseClientManager {
     this.lastSnapshot = snapshot;
     const status = snapshot?.status || {};
     const stats = status?.stats || {};
+    const lifecycle = normalizeLifecycle(status.lifecycle || snapshot?.app?.lifecycle || this.client?.lifecycle || this.client?.version?.lifecycle);
+    if (lifecycle && this.client) {
+      this.client.lifecycle = lifecycle;
+    }
     const sharedRows = unwrapItems(snapshot.sharedFiles);
     const sharedFilesReady = stats.sharedFilesReady !== false && stats.sharedHashingActive !== true;
     const sharedFiles = !sharedFilesReady && sharedRows.length === 0
@@ -552,6 +608,7 @@ class EmulebbManager extends BaseClientManager {
       sharedFiles,
       uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId)),
       nativeStatus: {
+        lifecycle,
         sharedFilesReady,
         sharedHashingActive: stats.sharedHashingActive === true,
         sharedHashingCount: Number.isFinite(Number(stats.sharedHashingCount)) ? Number(stats.sharedHashingCount) : null,
@@ -595,6 +652,7 @@ class EmulebbManager extends BaseClientManager {
     if (!this.client) throw new Error('eMule BB not connected');
     const status = await this.getStats();
     const stats = status?.stats || {};
+    const lifecycle = normalizeLifecycle(status?.lifecycle || this.client?.lifecycle || this.client?.version?.lifecycle);
     const servers = status?.servers || status?.server || {};
     const activeServer = servers.active || servers.currentServer || {};
     const kad = status?.kad || {};
@@ -602,6 +660,7 @@ class EmulebbManager extends BaseClientManager {
     return {
       EC_TAG_STATTREE_NODE: statsTreeBranch('eMule BB', [
         statsTreeBranch('Connection', [
+          statsTreeLeaf('Lifecycle', formatLifecycleState(lifecycle)),
           statsTreeLeaf('ED2K', formatBoolean(stats.ed2kConnected ?? servers.connected ?? activeServer.connected, 'Connected', 'Disconnected')),
           statsTreeLeaf('ED2K ID', formatBoolean(stats.ed2kHighId ?? status.ed2kHighId, 'High ID', 'Low ID')),
           statsTreeLeaf('Server', activeServer.name || activeServer.address || 'None'),
