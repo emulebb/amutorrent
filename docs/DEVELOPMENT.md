@@ -10,6 +10,7 @@ This guide covers building, developing, and contributing to aMuTorrent.
 - [Building](#building)
 - [Architecture Overview](#architecture-overview)
 - [Contributing](#contributing)
+- [Repository Hygiene](#repository-hygiene)
 
 ---
 
@@ -239,6 +240,28 @@ Before submitting:
 4. Test thoroughly
 5. Commit with descriptive messages
 6. Push and create a Pull Request
+
+---
+
+## Repository Hygiene
+
+The repository keeps tracked text files on LF line endings through
+`.editorconfig` and `.gitattributes`. Before committing broad or generated
+changes, run:
+
+```bash
+npm test
+git diff --check
+```
+
+When this checkout is inside the canonical eMule BB workspace, developers may
+opt into the shared workspace normalization hook from the repository root:
+
+```powershell
+git config core.hooksPath ..\eMule-tooling\hooks
+```
+
+This is local Git configuration; it should not be committed.
 
 ---
 
