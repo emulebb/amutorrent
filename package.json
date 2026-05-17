@@ -3,7 +3,7 @@
   "version": "3.8.5",
   "description": "aMuTorrent Frontend Build",
   "scripts": {
-    "build:css": "tailwindcss -i ./src/input.css -o ./static/output.css --minify",
+    "build:css": "node scripts/build-css.cjs",
     "build:js": "node build.mjs",
     "build:profile": "npm run build:css && node build.mjs --profile",
     "build": "npm run build:css && npm run build:js",
