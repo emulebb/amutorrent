@@ -9,7 +9,7 @@ jobs:
     uses: eMulebb/eMule-tooling/.github/workflows/reusable-baseline.yml@main
     with:
       policy_path: manifests/privacy-guard/policy.v1.json
-      repo_kind: generic
+      repo_kind: amutorrent
       node_version: '24'
       node_cache_dependency_path: |
         repo/package-lock.json
