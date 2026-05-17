@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "amutorrent-fork-delta/v1",
+  "upstream": {
+    "remote": "upstream",
+    "branch": "main",
+    "url": "https://github.com/got3nks/amutorrent.git"
+  },
+  "goals": [
+    "Keep eMule BB support as a first-class fork feature.",
+    "Keep generic aMuTorrent behavior as close to upstream as possible.",
+    "Make upstream rebases conflict-driven and test-driven instead of memory-driven."
+  ],
+  "runtimePolicy": {
+    "minimumNodeMajor": 24,
+    "portableDataEnvironmentVariable": "AMUTORRENT_DATA_DIR",
+    "windowsInstaller": "installer/windows/amutorrent.ps1"
+  },
+  "buildTooling": {
+    "tailwindCssWrapper": "scripts/build-css.cjs",
+    "browserslistPolicy": "Tailwind 3 bundles Browserslist and caniuse-lite data, so root CSS builds suppress its stale-data warning until a deliberate Tailwind 4 migration."
+  },
+  "forkOwned": [
+    {
+      "path": "server/modules/emulebbManager.js",
+      "reason": "eMule BB REST client manager and ED2K adapter",
+      "guards": ["tests/emulebbManager.test.js"]
+    },
+    {
+      "path": "installer/windows/amutorrent.ps1",
+      "reason": "Windows portable package setup and runtime launcher",
+      "guards": ["tests/windowsInstaller.test.js"]
+    },
+    {
+      "path": "tests/emulebbManager.test.js",
+      "reason": "Fork-owned contract tests for the eMule BB manager",
+      "guards": ["tests/forkDelta.test.js"]
+    }
+  ],
+  "sharedSeams": [
+    {
+      "path": "server/lib/clientMeta.js",
+      "reason": "Static client type metadata and capability declarations",
+      "guards": ["tests/forkDelta.test.js", "tests/config.test.js"]
+    },
+    {
+      "path": "server/lib/ClientRegistry.js",
+      "reason": "Runtime client-manager lookup shared by all client types",
+      "guards": ["tests/webSocketHandlers.test.js", "tests/qbittorrentAPI.test.js"]
+    },
+    {
+      "path": "server/modules/config.js",
+      "reason": "Environment and persisted client configuration mapping",
+      "guards": ["tests/config.test.js"]
+    },
+    {
+      "path": "static/components/views/SetupWizardView.js",
+      "reason": "First-run setup flow that exposes eMule BB as an ED2K backend",
+      "guards": ["tests/config.test.js", "tests/uiTestHooks.test.js"]
+    }
+  ],
+  "upstreamOwned": [
+    {
+      "path": "static/flags",
+      "rule": "Do not edit during fork maintenance unless a user-facing feature requires it."
+    },
+    {
+      "path": "website",
+      "rule": "Prefer upstream changes unless eMule BB release packaging needs an explicit delta."
+    },
+    {
+      "path": "docs",
+      "rule": "Prefer upstream content; keep fork-specific workspace docs in eMule-tooling."
+    }
+  ],
+  "rebaseWorkflow": [
+    "git fetch upstream",
+    "git checkout -b upstream-sync/YYYYMMDD main",
+    "git rebase upstream/main",
+    "Resolve forkOwned paths by preserving fork contracts unless upstream has equivalent support.",
+    "Resolve sharedSeams by keeping tests green and minimizing generic-client drift.",
+    "Prefer upstream for upstreamOwned paths.",
+    "npm ci",
+    "npm ci --prefix server --omit=dev",
+    "npm audit --prefix website",
+    "npm run build",
+    "npm run test:emulebb"
+  ],
+  "acceptance": [
+    "Critical fork-owned paths exist.",
+    "eMule BB remains registered as an ED2K client type.",
+    "eMule BB setup configuration remains addressable from environment and UI metadata.",
+    "qBittorrent compatibility APIs do not proxy through eMule BB.",
+    "Windows package runner keeps data package-local and supports Node 24 or newer."
+  ]
+}
