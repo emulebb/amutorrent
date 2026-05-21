@@ -611,6 +611,16 @@ class Config extends BaseModule {
       this._applyFlatEnvToClients(merged.clients);
     }
 
+    if (this.hasEnvValue(AMUTORRENT_DATA_DIR_ENV)) {
+      const dataDir = path.resolve(process.env[AMUTORRENT_DATA_DIR_ENV]);
+      if (!fileConfig?.directories?.logs) {
+        merged.directories.logs = path.join(dataDir, 'logs');
+      }
+      if (!fileConfig?.directories?.geoip) {
+        merged.directories.geoip = path.join(dataDir, 'geoip');
+      }
+    }
+
     return merged;
   }
 
@@ -1033,11 +1043,13 @@ class Config extends BaseModule {
         const envHost = process.env[hostEnvVar];
 
         const envPort = portSuffix && this.hasEnvValue(`${prefix}_${portSuffix}`) ? process.env[`${prefix}_${portSuffix}`] : undefined;
+        const envId = this.hasEnvValue(`${prefix}_ID`) ? process.env[`${prefix}_ID`] : null;
+        const envName = this.hasEnvValue(`${prefix}_NAME`) ? process.env[`${prefix}_NAME`] : null;
         const entry = {
           type,
           source: 'env',
-          id: instanceId.generateId(type, envHost, envPort || 0),
-          name: `${clientMeta.getDisplayName(type)} (env)`,
+          id: envId || instanceId.generateId(type, envHost, envPort || 0),
+          name: envName || `${clientMeta.getDisplayName(type)} (env)`,
           color: null,
           enabled: true
         };
@@ -1373,13 +1385,13 @@ class Config extends BaseModule {
   getLogDir() {
     return this.runtimeConfig?.directories?.logs
       ? path.resolve(this.runtimeConfig.directories.logs)
-      : path.join(__dirname, '..', 'logs');
+      : path.join(this.dataDir, 'logs');
   }
 
   getDataDir() {
     return this.runtimeConfig?.directories?.data
       ? path.resolve(this.runtimeConfig.directories.data)
-      : path.join(__dirname, '..', 'data');
+      : this.dataDir;
   }
 
   getGeoIPDir() {

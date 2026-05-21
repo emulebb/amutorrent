@@ -3,13 +3,19 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const http = require('node:http');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
+const ROOT = path.resolve(__dirname, '..');
+const TEST_TMP_ROOT = path.join(ROOT, 'tmp', 'test-artifacts', 'config-tests');
 const CONFIG_MODULE_PATH = require.resolve('../server/modules/config');
 const CONFIG_API_MODULE_PATH = require.resolve('../server/modules/configAPI');
 const configTester = require('../server/lib/configTester');
+
+async function makeTestDataDir(prefix) {
+  await fs.mkdir(TEST_TMP_ROOT, { recursive: true });
+  return fs.mkdtemp(path.join(TEST_TMP_ROOT, prefix));
+}
 
 async function withMockHttp(handler, run) {
   const requests = [];
@@ -58,7 +64,7 @@ function reloadConfigWithEnv(env) {
 }
 
 test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
-  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'amutorrent-config-test-'));
+  const dataDir = await makeTestDataDir('amutorrent-config-test-');
   const { config, restore } = reloadConfigWithEnv({
     AMUTORRENT_DATA_DIR: dataDir,
     PORT: '51987',
@@ -67,15 +73,21 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
 
   try {
     assert.equal(config.dataDir, path.resolve(dataDir));
+    assert.equal(config.getDataDir(), path.resolve(dataDir));
+    assert.equal(config.getLogDir(), path.join(path.resolve(dataDir), 'logs'));
+    assert.equal(config.getMetricsDbPath(), path.join(path.resolve(dataDir), 'metrics.db'));
 
     const runtimeConfig = await config.loadConfig();
 
     assert.equal(runtimeConfig.directories.data, dataDir);
+    assert.equal(runtimeConfig.directories.logs, path.join(path.resolve(dataDir), 'logs'));
+    assert.equal(runtimeConfig.directories.geoip, path.join(path.resolve(dataDir), 'geoip'));
     assert.equal(config.getDataDir(), path.resolve(dataDir));
     assert.equal(config.PORT, 51987);
     assert.equal(config.HOST, '127.0.0.1');
   } finally {
     restore();
+    await fs.rm(dataDir, { recursive: true, force: true });
   }
 });
 
@@ -170,5 +182,37 @@ test('configuration accepts aMule and eMule BB as separate ED2K backends', () =>
     assert.equal(clientMeta.get(clients[1].type).networkType, 'ed2k');
   } finally {
     restore();
+  }
+});
+
+test('environment-created ED2K clients preserve explicit IDs and names', async () => {
+  const dataDir = await makeTestDataDir('amutorrent-env-client-id-test-');
+  const { config, restore } = reloadConfigWithEnv({
+    AMUTORRENT_DATA_DIR: dataDir,
+    AMULE_ENABLED: 'true',
+    AMULE_HOST: '127.0.0.1',
+    AMULE_PORT: '4712',
+    AMULE_PASSWORD: 'amule-secret',
+    AMULE_ID: 'cl-amule-004',
+    AMULE_NAME: 'cl-amule-004',
+    EMULEBB_ENABLED: 'true',
+    EMULEBB_HOST: '127.0.0.1',
+    EMULEBB_PORT: '4711',
+    EMULEBB_API_KEY: 'emulebb-key',
+    EMULEBB_ID: 'cl-emulebb-001',
+    EMULEBB_NAME: 'cl-emulebb-001'
+  });
+
+  try {
+    await config.loadConfig();
+    const clients = config.getClientConfigs();
+
+    assert.equal(clients.find(client => client.type === 'amule').id, 'cl-amule-004');
+    assert.equal(clients.find(client => client.type === 'amule').name, 'cl-amule-004');
+    assert.equal(clients.find(client => client.type === 'emulebb').id, 'cl-emulebb-001');
+    assert.equal(clients.find(client => client.type === 'emulebb').name, 'cl-emulebb-001');
+  } finally {
+    restore();
+    await fs.rm(dataDir, { recursive: true, force: true });
   }
 });
