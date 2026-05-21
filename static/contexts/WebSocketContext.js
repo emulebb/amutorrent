@@ -15,6 +15,7 @@ import { useAuth } from './AuthContext.js';
 const { createElement: h } = React;
 
 const WebSocketContext = createContext(null);
+const normalizeList = (value) => Array.isArray(value) ? value : (value ? [value] : []);
 
 export const WebSocketProvider = ({ children }) => {
   const [wsConnected, setWsConnected] = useState(false);
@@ -361,7 +362,7 @@ export const WebSocketProvider = ({ children }) => {
       },
       'batch-label-changed': () => handleBatchComplete('label change'),
       'servers-update': () => {
-        setDataServers(data.data?.EC_TAG_SERVER || []);
+        setDataServers(normalizeList(data.data?.EC_TAG_SERVER));
         markStaticDataLoaded('servers');
       },
       'server-action': () => {

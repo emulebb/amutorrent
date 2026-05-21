@@ -45,6 +45,7 @@ const AddDownloadModal = ({
   } = useBitTorrentClientSelector();
   // Get unified categories and instance metadata from context
   const { dataCategories: categories, instances, isTypeConnected } = useStaticData();
+  const [selectedEd2kInstanceId, setSelectedEd2kInstanceId] = useState(null);
 
   // Build per-instance connection badges from instances metadata
   const instanceBadges = React.useMemo(() => {
@@ -61,7 +62,7 @@ const AddDownloadModal = ({
     selectedId: effectiveEd2kInstance,
     selectedInstance: selectedEd2kObj,
     selectInstance: selectEd2kInstance
-  } = useEd2kInstanceSelector();
+  } = useEd2kInstanceSelector({ selectedId: selectedEd2kInstanceId, onSelect: setSelectedEd2kInstanceId });
 
   // State
   const [links, setLinks] = useState('');
@@ -157,6 +158,7 @@ const AddDownloadModal = ({
     setTorrentFiles([]);
     setSelectedCategory('Default');
     setCustomCategory('');
+    setSelectedEd2kInstanceId(null);
     setUseCustomCategory(false);
     setShowSavePath(false);
     setCustomSavePath('');
@@ -308,6 +310,7 @@ const AddDownloadModal = ({
         // `modal-full` overrides this to full-viewport on mobile via the
         // input.css rule, so the cap is desktop-only in practice.
         'data-testid': 'emulebb-add-download-modal',
+        'data-selected-ed2k-instance': effectiveEd2kInstance || '',
         className: 'modal-full bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden',
         onClick: (e) => e.stopPropagation()
       },

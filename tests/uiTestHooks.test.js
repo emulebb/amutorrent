@@ -34,8 +34,14 @@ test('eMule BB full UI E2E hooks are present on stable controls', () => {
     ['static/utils/columnBuilders.js', "'item-file-name'"],
     ['static/components/common/SelectionCheckbox.js', '...props'],
     ['static/components/modals/AddDownloadModal.js', "'emulebb-add-download-modal'"],
+    ['static/components/modals/AddDownloadModal.js', "'data-selected-ed2k-instance'"],
     ['static/components/modals/AddDownloadModal.js', "'emulebb-add-download-links'"],
     ['static/components/modals/AddDownloadModal.js', "'emulebb-add-download-submit'"],
+    ['static/components/common/Ed2kInstanceSelector.js', "'ed2k-instance-selector'"],
+    ['static/components/common/Ed2kInstanceSelector.js', '`ed2k-instance-${inst.id}`'],
+    ['static/components/common/Ed2kInstanceSelector.js', "'data-instance-id'"],
+    ['static/components/common/Ed2kInstanceSelector.js', "'data-selected'"],
+    ['static/components/common/Ed2kInstanceSelector.js', "'aria-pressed'"],
     ['static/components/common/DeleteModal.js', "'delete-confirm-modal'"],
     ['static/components/common/DeleteModal.js', "'delete-confirm-submit'"],
     ['static/components/modals/FileCategoryModal.js', "'file-category-modal'"],
@@ -48,6 +54,7 @@ test('eMule BB full UI E2E hooks are present on stable controls', () => {
     ['static/components/modals/SharedDirsModal.js', "'shared-dirs-rescan'"],
     ['static/components/views/ServersView.js', "'emulebb-servers-refresh'"],
     ['static/components/views/ServersView.js', "'emulebb-server-connect'"],
+    ['static/contexts/WebSocketContext.js', 'normalizeList(data.data?.EC_TAG_SERVER)'],
     ['static/components/views/StatisticsView.js', "'stats-tree-open'"],
     ['static/components/modals/StatsTreeModal.js', "'stats-tree-modal'"],
     ['static/components/views/LogsView.js', "'app-logs-section'"],
@@ -77,4 +84,11 @@ test('major eMule BB integration views expose stable view hooks', () => {
   for (const [relativePath, expected] of Object.entries(viewHooks)) {
     assert.match(read(relativePath), new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+});
+
+test('Add Download modal forwards selected ED2K instance to actions', () => {
+  const source = read('static/components/AppContent.js');
+
+  assert.match(source, /onAddEd2kLinks:\s*\(links,\s*categoryName,\s*isServerList,\s*instanceId\)/);
+  assert.match(source, /actions\.search\.addEd2kLinks\(links\.join\('\\n'\),\s*categoryName,\s*isServerList,\s*instanceId\)/);
 });

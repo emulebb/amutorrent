@@ -43,6 +43,7 @@ const Ed2kInstanceSelector = ({
       value: selectedId || '',
       onChange: (e) => onSelect(e.target.value),
       disabled,
+      'data-testid': 'ed2k-instance-selector',
       className: `text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 ${className}`
     },
       connectedInstances.map(inst =>
@@ -66,6 +67,10 @@ const Ed2kInstanceSelector = ({
           type: 'button',
           onClick: () => onSelect(inst.id),
           disabled,
+          'aria-pressed': selectedId === inst.id,
+          'data-testid': `ed2k-instance-${inst.id}`,
+          'data-instance-id': inst.id,
+          'data-selected': selectedId === inst.id ? 'true' : 'false',
           className: `flex items-center gap-1.5 px-3 ${BASE_HEIGHT} text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
             selectedId === inst.id
               ? 'bg-blue-600 text-white'
