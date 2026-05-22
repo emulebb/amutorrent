@@ -50,7 +50,7 @@ function createManager(port) {
 test('eMule BB manager initializes, caches categories, and normalizes transfers', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
-      return { body: { version: '0.72a', lifecycle: { state: 'running', startupComplete: true, coreReady: true, sharedFilesReady: true, acceptingRest: true, acceptingMutations: true, shutdownInProgress: false }, capabilities: { categoriesRead: true } } };
+      return { body: { version: '0.7.3', lifecycle: { state: 'running', startupComplete: true, coreReady: true, sharedFilesReady: true, acceptingRest: true, acceptingMutations: true, shutdownInProgress: false }, capabilities: { categoriesRead: true } } };
     }
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }, { id: 2, name: 'Movies' }] } };
@@ -84,7 +84,7 @@ test('eMule BB manager preserves shared files while native startup cache warms',
   let snapshotCount = 0;
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
-      return { body: { version: '0.72a', capabilities: { categoriesRead: true } } };
+      return { body: { version: '0.7.3', capabilities: { categoriesRead: true } } };
     }
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }] } };
@@ -133,7 +133,7 @@ test('eMule BB manager preserves shared files while native startup cache warms',
 test('eMule BB manager treats legacy SERVICE_BUSY shared hashing as warmup', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
-      return { body: { version: '0.72a', capabilities: { categoriesRead: true } } };
+      return { body: { version: '0.7.3', capabilities: { categoriesRead: true } } };
     }
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }] } };
@@ -163,7 +163,7 @@ test('eMule BB manager avoids native mutations while lifecycle is not accepting 
     if (method === 'GET' && url === '/api/v1/app') {
       return {
         body: {
-          version: '0.72a',
+          version: '0.7.3',
           lifecycle: {
             state: 'starting',
             startupComplete: false,
@@ -298,13 +298,13 @@ test('eMule BB manager adapts REST status into stats tree contract', async () =>
 test('eMule BB manager unwraps native v1 success and error envelopes', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
-      return { body: { data: { version: '0.72a' }, meta: { apiVersion: 'v1' } } };
+      return { body: { data: { version: '0.7.3' }, meta: { apiVersion: 'v1' } } };
     }
     return { status: 401, body: { error: { code: 'UNAUTHORIZED', message: 'missing or invalid X-API-Key' } } };
   }, async ({ port }) => {
     const manager = createManager(port);
 
-    assert.deepEqual(await manager._request('GET', '/api/v1/app'), { version: '0.72a' });
+    assert.deepEqual(await manager._request('GET', '/api/v1/app'), { version: '0.7.3' });
     await assert.rejects(
       manager._request('GET', '/api/v1/status'),
       /eMule BB UNAUTHORIZED: missing or invalid X-API-Key/
