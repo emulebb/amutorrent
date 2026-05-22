@@ -17,7 +17,7 @@ function createContext() {
   };
 }
 
-test('refresh shared files targets connected eMule BB managers', async () => {
+test('refresh shared files targets connected eMuleBB managers', async () => {
   registry.clear();
   const calls = [];
   registry.register('emulebb-127.0.0.1-4711', 'emulebb', {

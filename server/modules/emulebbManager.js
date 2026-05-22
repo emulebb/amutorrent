@@ -1,7 +1,7 @@
 /**
- * eMule BB REST client manager.
+ * eMuleBB REST client manager.
  *
- * Talks to the eMule BB in-process REST API and adapts its ED2K data into the
+ * Talks to the eMuleBB in-process REST API and adapts its ED2K data into the
  * same manager contract used by the rest of aMuTorrent.
  */
 
@@ -451,24 +451,24 @@ class EmulebbManager extends BaseClientManager {
           try {
             payload = text ? JSON.parse(text) : null;
           } catch (err) {
-            return reject(new Error(`Invalid JSON from eMule BB: ${err.message}`));
+            return reject(new Error(`Invalid JSON from eMuleBB: ${err.message}`));
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
             const { code, message } = normalizeErrorPayload(payload, res.statusCode, text);
-            const err = new Error(`eMule BB ${code}: ${message}`);
+            const err = new Error(`eMuleBB ${code}: ${message}`);
             err.code = code;
             err.statusCode = res.statusCode;
             if (code === 'EMULE_UNAVAILABLE') this._markLifecycleUnavailable();
             return reject(err);
           }
           if (payload == null) {
-            return reject(new Error('eMule BB returned an empty JSON response'));
+            return reject(new Error('eMuleBB returned an empty JSON response'));
           }
           resolve(unwrapPayload(payload));
         });
       });
-      req.on('error', err => reject(new Error(`eMule BB request failed: ${err.message}`)));
-      req.on('timeout', () => req.destroy(new Error('eMule BB request timed out')));
+      req.on('error', err => reject(new Error(`eMuleBB request failed: ${err.message}`)));
+      req.on('timeout', () => req.destroy(new Error('eMuleBB request timed out')));
       if (data) req.write(data);
       req.end();
     });
@@ -478,7 +478,7 @@ class EmulebbManager extends BaseClientManager {
     if (!['POST', 'PATCH', 'DELETE'].includes(String(method || '').toUpperCase())) return;
     const lifecycle = normalizeLifecycle(this.client?.lifecycle || this.client?.version?.lifecycle);
     if (!lifecycle || lifecycle.acceptingMutations) return;
-    const err = new Error(`eMule BB lifecycle ${formatLifecycleState(lifecycle)} is not accepting mutations`);
+    const err = new Error(`eMuleBB lifecycle ${formatLifecycleState(lifecycle)} is not accepting mutations`);
     err.code = 'EMULE_UNAVAILABLE';
     throw err;
   }
@@ -508,17 +508,17 @@ class EmulebbManager extends BaseClientManager {
       const version = await this._request('GET', '/api/v1/app');
       this.client = { version, lifecycle: normalizeLifecycle(version?.lifecycle) };
       await this._refreshCategories().catch(err => {
-        this.warn(`Failed to fetch eMule BB categories: ${logger.errorDetail(err)}`);
+        this.warn(`Failed to fetch eMuleBB categories: ${logger.errorDetail(err)}`);
       });
       this._clearConnectionError();
       this.clearReconnect();
-      this.log(`Connected to eMule BB ${version?.version || ''}`.trim());
+      this.log(`Connected to eMuleBB ${version?.version || ''}`.trim());
       this._onConnectCallbacks.forEach(cb => cb());
       return true;
     } catch (err) {
       this.client = null;
       this._setConnectionError(err);
-      this.error('Failed to connect to eMule BB:', logger.errorDetail(err));
+      this.error('Failed to connect to eMuleBB:', logger.errorDetail(err));
       return false;
     } finally {
       this.connectionInProgress = false;
@@ -537,14 +537,14 @@ class EmulebbManager extends BaseClientManager {
   async fetchData() {
     if (!this.client) return { downloads: [], sharedFiles: [], uploads: [] };
     await this._refreshCategories().catch(err => {
-      this.warn(`Failed to refresh eMule BB categories: ${logger.errorDetail(err)}`);
+      this.warn(`Failed to refresh eMuleBB categories: ${logger.errorDetail(err)}`);
     });
     let snapshot = null;
     try {
       snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
     } catch (err) {
       if (/SERVICE_BUSY/i.test(err.message || '') && /shared file hashing/i.test(err.message || '')) {
-        this.warn(`eMule BB shared files are still warming: ${logger.errorDetail(err)}`);
+        this.warn(`eMuleBB shared files are still warming: ${logger.errorDetail(err)}`);
         return {
           downloads: [],
           sharedFiles: this.lastSharedFiles.slice(),
@@ -596,10 +596,10 @@ class EmulebbManager extends BaseClientManager {
           try {
             download.peers = await this._getTransferSources(download.hash, download);
           } catch (sourceErr) {
-            this.warn(`Failed to fetch eMule BB sources for ${download.hash}: ${logger.errorDetail(sourceErr)}`);
+            this.warn(`Failed to fetch eMuleBB sources for ${download.hash}: ${logger.errorDetail(sourceErr)}`);
           }
         } else {
-          this.debug?.(`No eMule BB transfer details for ${download.hash}: ${logger.errorDetail(err)}`);
+          this.debug?.(`No eMuleBB transfer details for ${download.hash}: ${logger.errorDetail(err)}`);
         }
       }
     }));
@@ -642,14 +642,14 @@ class EmulebbManager extends BaseClientManager {
   /**
    * Build a statistics tree compatible with the aMule EC stats-tree renderer.
    *
-   * eMule BB exposes structured REST status fields rather than an EC tree, so
+   * eMuleBB exposes structured REST status fields rather than an EC tree, so
    * this adapter keeps the public aMuTorrent endpoint useful for both ED2K
    * backends while preserving the existing UI data contract.
    *
    * @returns {Promise<Object>} aMuTorrent statistics tree payload
    */
   async getStatsTree() {
-    if (!this.client) throw new Error('eMule BB not connected');
+    if (!this.client) throw new Error('eMuleBB not connected');
     const status = await this.getStats();
     const stats = status?.stats || {};
     const lifecycle = normalizeLifecycle(status?.lifecycle || this.client?.lifecycle || this.client?.version?.lifecycle);
@@ -658,7 +658,7 @@ class EmulebbManager extends BaseClientManager {
     const kad = status?.kad || {};
 
     return {
-      EC_TAG_STATTREE_NODE: statsTreeBranch('eMule BB', [
+      EC_TAG_STATTREE_NODE: statsTreeBranch('eMuleBB', [
         statsTreeBranch('Connection', [
           statsTreeLeaf('Lifecycle', formatLifecycleState(lifecycle)),
           statsTreeLeaf('ED2K', formatBoolean(stats.ed2kConnected ?? servers.connected ?? activeServer.connected, 'Connected', 'Disconnected')),
@@ -753,7 +753,7 @@ class EmulebbManager extends BaseClientManager {
         deleteFiles: deleteFiles === true
       });
       if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) return { success: true, pathsToDelete: [] };
-      return { success: false, error: operationErrorMessage(payload, 'eMule BB rejected the shared-file delete request') };
+      return { success: false, error: operationErrorMessage(payload, 'eMuleBB rejected the shared-file delete request') };
     }
 
     const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
@@ -763,7 +763,7 @@ class EmulebbManager extends BaseClientManager {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
     }
-    return { success: false, error: operationErrorMessage(payload, 'eMule BB rejected the delete request') };
+    return { success: false, error: operationErrorMessage(payload, 'eMuleBB rejected the delete request') };
   }
 
   /**
@@ -817,7 +817,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async createCategory({ name, path = '', comment = '', color = null, priority = 0 } = {}) {
-    if (!this.client) throw new Error('eMule BB not connected');
+    if (!this.client) throw new Error('eMuleBB not connected');
     const payload = {
       name: String(name || '').trim(),
       path: path || null,
@@ -831,8 +831,8 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async editCategory({ id, name, path = '', comment = '', color = null, priority = 0 } = {}) {
-    if (!this.client) throw new Error('eMule BB not connected');
-    if (id == null) return { success: false, verified: false, mismatches: ['No eMule BB category ID'] };
+    if (!this.client) throw new Error('eMuleBB not connected');
+    if (id == null) return { success: false, verified: false, mismatches: ['No eMuleBB category ID'] };
     const payload = {
       name: String(name || '').trim(),
       path: path || null,
@@ -853,7 +853,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async deleteCategory({ id } = {}) {
-    if (!this.client) throw new Error('eMule BB not connected');
+    if (!this.client) throw new Error('eMuleBB not connected');
     if (id == null) return;
     await this._request('DELETE', `/api/v1/categories/${encodeURIComponent(id)}`, {});
     await this._refreshCategories();
@@ -864,7 +864,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async ensureCategoryExists({ name, path = '', color = null, comment = '', priority = 0 } = {}) {
-    if (!this.client) throw new Error('eMule BB not connected');
+    if (!this.client) throw new Error('eMuleBB not connected');
     await this._refreshCategories();
     const trimmedName = String(name || '').trim();
     const existing = this._categoryByName.get(trimmedName.toLowerCase());
@@ -889,7 +889,7 @@ class EmulebbManager extends BaseClientManager {
         const created = await this.createCategory(category);
         if (created.categoryId != null) results.push({ name, amuleId: created.categoryId });
       } catch (err) {
-        this.warn(`Failed to create eMule BB category "${name}": ${logger.errorDetail(err)}`);
+        this.warn(`Failed to create eMuleBB category "${name}": ${logger.errorDetail(err)}`);
       }
     }
     return results;
@@ -914,14 +914,14 @@ class EmulebbManager extends BaseClientManager {
 
     const name = String(categoryName || '').trim();
     if (!name) {
-      return { success: false, error: 'eMule BB category assignment requires categoryId or categoryName' };
+      return { success: false, error: 'eMuleBB category assignment requires categoryId or categoryName' };
     }
 
     if (!this._categoryByName.has(name.toLowerCase())) {
       await this._refreshCategories();
     }
     if (!this._categoryByName.has(name.toLowerCase())) {
-      return { success: false, error: `Unknown eMule BB category: ${name}` };
+      return { success: false, error: `Unknown eMuleBB category: ${name}` };
     }
 
     await this._request('PATCH', `/api/v1/transfers/${encodeURIComponent(hash)}`, { categoryName: name });
@@ -971,7 +971,7 @@ class EmulebbManager extends BaseClientManager {
     const payload = await this._request('GET', `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}`);
     const backendMethod = payload.method ? String(payload.method).toLowerCase() : null;
     if (!searchMethodMatches(this.lastSearchMeta?.method, backendMethod)) {
-      this.warn(`Ignoring eMule BB search results for method "${backendMethod}" while "${this.lastSearchMeta.method}" was requested`);
+      this.warn(`Ignoring eMuleBB search results for method "${backendMethod}" while "${this.lastSearchMeta.method}" was requested`);
       this.lastSearchResults = [];
       this.lastSearchMeta = {
         ...(this.lastSearchMeta || {}),

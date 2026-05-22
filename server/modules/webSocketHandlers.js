@@ -644,7 +644,7 @@ class WebSocketHandlers extends BaseModule {
         categoryId = await manager.ensureAmuleCategoryId(categoryName) ?? 0;
         context.log(`Category lookup: name="${categoryName}" → amuleId=${categoryId}`);
       } else if (categoryName) {
-        context.log(`Category "${categoryName}" ignored for ${manager.displayName}; numeric eMule BB categories are not managed by aMuTorrent`);
+        context.log(`Category "${categoryName}" ignored for ${manager.displayName}; numeric eMuleBB categories are not managed by aMuTorrent`);
       } else if (rawCategoryId !== undefined && rawCategoryId !== null) {
         categoryId = rawCategoryId;
         context.log(`Using legacy categoryId: ${categoryId}`);
@@ -726,7 +726,7 @@ class WebSocketHandlers extends BaseModule {
         categoryId = resolved ?? 0;
         context.log(`Category lookup: name="${data.categoryName}" → amuleId=${categoryId}`);
       } else if (data.categoryName) {
-        context.log(`Category "${data.categoryName}" ignored for ${manager.displayName}; numeric eMule BB categories are not managed by aMuTorrent`);
+        context.log(`Category "${data.categoryName}" ignored for ${manager.displayName}; numeric eMuleBB categories are not managed by aMuTorrent`);
       }
 
       const results = [];

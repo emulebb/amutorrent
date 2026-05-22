@@ -20,7 +20,7 @@ function registerManager(instanceId, clientType) {
   });
 }
 
-test('qBittorrent compatibility API does not proxy through eMule BB managers', () => {
+test('qBittorrent compatibility API does not proxy through eMuleBB managers', () => {
   const originalRuntimeConfig = config.runtimeConfig;
   registry.clear();
   config.runtimeConfig = { integrations: {} };

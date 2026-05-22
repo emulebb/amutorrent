@@ -29,7 +29,7 @@ export function useEd2kInstanceSelector(options = {}) {
       .map(([id, inst]) => ({
         id,
         type: inst.type,
-        name: inst.name || (inst.type === 'emulebb' ? 'eMule BB' : 'aMule'),
+        name: inst.name || (inst.type === 'emulebb' ? 'eMuleBB' : 'aMule'),
         color: inst.color,
         order: inst.order
       }))

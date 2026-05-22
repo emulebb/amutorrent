@@ -754,7 +754,7 @@ const SettingsView = () => {
         return amuleClients.length > 1 && h('div', { className: 'mb-6' },
           h(ConfigField, {
             label: 'aMule Instance for Compatibility APIs',
-            description: 'Which aMule instance backs aMuTorrent Torznab and qBittorrent-compatible APIs. eMule BB exposes Torznab directly.'
+            description: 'Which aMule instance backs aMuTorrent Torznab and qBittorrent-compatible APIs. eMuleBB exposes Torznab directly.'
           },
             h('select', {
               value: formData.integrations.amuleInstanceId || '',

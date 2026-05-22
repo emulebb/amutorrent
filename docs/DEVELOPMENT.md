@@ -254,7 +254,7 @@ npm test
 git diff --check
 ```
 
-When this checkout is inside the canonical eMule BB workspace, developers may
+When this checkout is inside the canonical eMuleBB workspace, developers may
 opt into the shared workspace normalization hook from the repository root:
 
 ```powershell

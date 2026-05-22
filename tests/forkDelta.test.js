@@ -33,18 +33,18 @@ test('fork delta manifest tracks existing owned and shared seam files', () => {
   }
 });
 
-test('fork delta manifest protects the eMule BB client seam', () => {
+test('fork delta manifest protects the eMuleBB client seam', () => {
   const clientMeta = read('server/lib/clientMeta.js');
   const server = read('server/server.js');
   const setupWizard = read('static/components/views/SetupWizardView.js');
 
   assert.match(clientMeta, /emulebb:\s*{/);
   assert.match(clientMeta, /networkType:\s*'ed2k'/);
-  assert.match(clientMeta, /displayName:\s*'eMule BB'/);
+  assert.match(clientMeta, /displayName:\s*'eMuleBB'/);
   assert.match(clientMeta, /categoriesRead:\s*true/);
   assert.match(server, /emulebb:\s*require\('\.\/modules\/emulebbManager'\)\.EmulebbManager/);
   assert.match(setupWizard, /formData\.emulebb/);
-  assert.match(setupWizard, /eMule BB/);
+  assert.match(setupWizard, /eMuleBB/);
 });
 
 test('fork delta manifest protects package-local runtime and Node policy', () => {
@@ -85,5 +85,5 @@ test('fork delta manifest records rebase acceptance commands', () => {
   assert.match(workflow, /npm run build/);
   assert.match(workflow, /npm run test:emulebb/);
   assert.match(acceptance, /Critical fork-owned paths exist/);
-  assert.match(acceptance, /qBittorrent compatibility APIs do not proxy through eMule BB/);
+  assert.match(acceptance, /qBittorrent compatibility APIs do not proxy through eMuleBB/);
 });

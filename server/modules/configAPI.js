@@ -302,7 +302,7 @@ class ConfigAPI extends BaseModule {
       }
       if (emulebb && emulebb.enabled !== false) {
         const apiKey = emulebb.apiKey || (emulebb.instanceId ? config.getClientConfig(emulebb.instanceId)?.apiKey : null);
-        this.log(`🧪 Testing eMule BB connection to ${emulebb.host}:${emulebb.port}...`);
+        this.log(`🧪 Testing eMuleBB connection to ${emulebb.host}:${emulebb.port}...`);
         results.emulebb = await configTester.testEmulebbConnection(
           emulebb.host,
           emulebb.port,
@@ -310,7 +310,7 @@ class ConfigAPI extends BaseModule {
           emulebb.useSsl,
           emulebb.path,
         );
-        this.logTestResult('eMule BB connection', results.emulebb);
+        this.logTestResult('eMuleBB connection', results.emulebb);
       }
 
       // Test rtorrent connection if provided and enabled

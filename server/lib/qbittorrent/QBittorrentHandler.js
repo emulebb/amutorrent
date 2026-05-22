@@ -183,7 +183,7 @@ class QBittorrentHandler {
 
   /**
    * Initialize categories on startup.
-   * The qBittorrent compatibility API is backed by aMule only; eMule BB exposes
+   * The qBittorrent compatibility API is backed by aMule only; eMuleBB exposes
    * its own Torznab surface directly.
    */
   initCategories() {

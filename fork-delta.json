@@ -6,7 +6,7 @@
     "url": "https://github.com/got3nks/amutorrent.git"
   },
   "goals": [
-    "Keep eMule BB support as a first-class fork feature.",
+    "Keep eMuleBB support as a first-class fork feature.",
     "Keep generic aMuTorrent behavior as close to upstream as possible.",
     "Make upstream rebases conflict-driven and test-driven instead of memory-driven."
   ],
@@ -22,7 +22,7 @@
   "forkOwned": [
     {
       "path": "server/modules/emulebbManager.js",
-      "reason": "eMule BB REST client manager and ED2K adapter",
+      "reason": "eMuleBB REST client manager and ED2K adapter",
       "guards": ["tests/emulebbManager.test.js"]
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "path": "tests/emulebbManager.test.js",
-      "reason": "Fork-owned contract tests for the eMule BB manager",
+      "reason": "Fork-owned contract tests for the eMuleBB manager",
       "guards": ["tests/forkDelta.test.js"]
     }
   ],
@@ -54,7 +54,7 @@
     },
     {
       "path": "static/components/views/SetupWizardView.js",
-      "reason": "First-run setup flow that exposes eMule BB as an ED2K backend",
+      "reason": "First-run setup flow that exposes eMuleBB as an ED2K backend",
       "guards": ["tests/config.test.js", "tests/uiTestHooks.test.js"]
     }
   ],
@@ -65,7 +65,7 @@
     },
     {
       "path": "website",
-      "rule": "Prefer upstream changes unless eMule BB release packaging needs an explicit delta."
+      "rule": "Prefer upstream changes unless eMuleBB release packaging needs an explicit delta."
     },
     {
       "path": "docs",
@@ -87,9 +87,9 @@
   ],
   "acceptance": [
     "Critical fork-owned paths exist.",
-    "eMule BB remains registered as an ED2K client type.",
-    "eMule BB setup configuration remains addressable from environment and UI metadata.",
-    "qBittorrent compatibility APIs do not proxy through eMule BB.",
+    "eMuleBB remains registered as an ED2K client type.",
+    "eMuleBB setup configuration remains addressable from environment and UI metadata.",
+    "qBittorrent compatibility APIs do not proxy through eMuleBB.",
     "Windows package runner keeps data package-local and supports Node 24 or newer."
   ]
 }

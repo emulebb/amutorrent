@@ -42,8 +42,8 @@ const CLIENT_LOG_SECTIONS = {
     { key: 'serverInfo', title: 'ED2K Server Info', dataKey: 'dataServerInfo', loadedKey: 'serverInfo', fetchKey: 'fetchServerInfo' }
   ],
   emulebb: [
-    { key: 'emulebbLogs', title: 'eMule BB Logs', dataKey: 'dataLogs', loadedKey: 'logs', fetchKey: 'fetchLogs' },
-    { key: 'emulebbServerInfo', title: 'eMule BB Server Info', dataKey: 'dataServerInfo', loadedKey: 'serverInfo', fetchKey: 'fetchServerInfo' }
+    { key: 'emulebbLogs', title: 'eMuleBB Logs', dataKey: 'dataLogs', loadedKey: 'logs', fetchKey: 'fetchLogs' },
+    { key: 'emulebbServerInfo', title: 'eMuleBB Server Info', dataKey: 'dataServerInfo', loadedKey: 'serverInfo', fetchKey: 'fetchServerInfo' }
   ]
 };
 

@@ -47,7 +47,7 @@ function createManager(port) {
   return manager;
 }
 
-test('eMule BB manager initializes, caches categories, and normalizes transfers', async () => {
+test('eMuleBB manager initializes, caches categories, and normalizes transfers', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
       return { body: { version: '0.7.3', lifecycle: { state: 'running', startupComplete: true, coreReady: true, sharedFilesReady: true, acceptingRest: true, acceptingMutations: true, shutdownInProgress: false }, capabilities: { categoriesRead: true } } };
@@ -80,7 +80,7 @@ test('eMule BB manager initializes, caches categories, and normalizes transfers'
   });
 });
 
-test('eMule BB manager preserves shared files while native startup cache warms', async () => {
+test('eMuleBB manager preserves shared files while native startup cache warms', async () => {
   let snapshotCount = 0;
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
@@ -130,7 +130,7 @@ test('eMule BB manager preserves shared files while native startup cache warms',
   });
 });
 
-test('eMule BB manager treats legacy SERVICE_BUSY shared hashing as warmup', async () => {
+test('eMuleBB manager treats legacy SERVICE_BUSY shared hashing as warmup', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
       return { body: { version: '0.7.3', capabilities: { categoriesRead: true } } };
@@ -158,7 +158,7 @@ test('eMule BB manager treats legacy SERVICE_BUSY shared hashing as warmup', asy
   });
 });
 
-test('eMule BB manager avoids native mutations while lifecycle is not accepting them', async () => {
+test('eMuleBB manager avoids native mutations while lifecycle is not accepting them', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
       return {
@@ -196,7 +196,7 @@ test('eMule BB manager avoids native mutations while lifecycle is not accepting 
   });
 });
 
-test('eMule BB manager normalizes native REST network status', () => {
+test('eMuleBB manager normalizes native REST network status', () => {
   const manager = new EmulebbManager();
   const status = manager.getNetworkStatus({
     server: {
@@ -225,7 +225,7 @@ test('eMule BB manager normalizes native REST network status', () => {
   });
 });
 
-test('eMule BB manager adapts REST status into stats tree contract', async () => {
+test('eMuleBB manager adapts REST status into stats tree contract', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/status') {
       return {
@@ -274,7 +274,7 @@ test('eMule BB manager adapts REST status into stats tree contract', async () =>
 
     const tree = await manager.getStatsTree();
     const root = tree.EC_TAG_STATTREE_NODE;
-    assert.equal(root._value, 'eMule BB');
+    assert.equal(root._value, 'eMuleBB');
     assert.equal(root.EC_TAG_STATTREE_NODE[0]._value, 'Connection');
     assert.deepEqual(root.EC_TAG_STATTREE_NODE[0].EC_TAG_STATTREE_NODE[0], {
       _value: 'Lifecycle: %s',
@@ -295,7 +295,7 @@ test('eMule BB manager adapts REST status into stats tree contract', async () =>
   });
 });
 
-test('eMule BB manager unwraps native v1 success and error envelopes', async () => {
+test('eMuleBB manager unwraps native v1 success and error envelopes', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/app') {
       return { body: { data: { version: '0.7.3' }, meta: { apiVersion: 'v1' } } };
@@ -307,12 +307,12 @@ test('eMule BB manager unwraps native v1 success and error envelopes', async () 
     assert.deepEqual(await manager._request('GET', '/api/v1/app'), { version: '0.7.3' });
     await assert.rejects(
       manager._request('GET', '/api/v1/status'),
-      /eMule BB UNAUTHORIZED: missing or invalid X-API-Key/
+      /eMuleBB UNAUTHORIZED: missing or invalid X-API-Key/
     );
   });
 });
 
-test('eMule BB manager hydrates transfer sources from REST', async () => {
+test('eMuleBB manager hydrates transfer sources from REST', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }] } };
@@ -391,7 +391,7 @@ test('eMule BB manager hydrates transfer sources from REST', async () => {
   });
 });
 
-test('eMule BB manager falls back to source hydration without transfer detail capability', async () => {
+test('eMuleBB manager falls back to source hydration without transfer detail capability', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }] } };
@@ -442,7 +442,7 @@ test('eMule BB manager falls back to source hydration without transfer detail ca
   });
 });
 
-test('eMule BB manager keeps transfers when source hydration fails', async () => {
+test('eMuleBB manager keeps transfers when source hydration fails', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }] } };
@@ -480,7 +480,7 @@ test('eMule BB manager keeps transfers when source hydration fails', async () =>
   });
 });
 
-test('eMule BB hydrated sources are preserved through unified item assembly', () => {
+test('eMuleBB hydrated sources are preserved through unified item assembly', () => {
   const [item] = assembleUnifiedItems(
     [{
       clientType: 'emulebb',
@@ -516,7 +516,7 @@ test('eMule BB hydrated sources are preserved through unified item assembly', ()
   assert.equal(item.peers[0].completedPercent, 30);
 });
 
-test('eMule BB manager normalizes shared metadata and updates rating/comment', async () => {
+test('eMuleBB manager normalizes shared metadata and updates rating/comment', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
       return {
@@ -563,7 +563,7 @@ test('eMule BB manager normalizes shared metadata and updates rating/comment', a
   });
 });
 
-test('eMule BB manager renames incomplete transfers through REST', async () => {
+test('eMuleBB manager renames incomplete transfers through REST', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'PATCH' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab') {
       assert.deepEqual(body, { name: 'renamed.bin' });
@@ -581,7 +581,7 @@ test('eMule BB manager renames incomplete transfers through REST', async () => {
   });
 });
 
-test('eMule BB manager reports REST rename failures without throwing', async () => {
+test('eMuleBB manager reports REST rename failures without throwing', async () => {
   await withMockEmulebb(() => ({
     status: 409,
     body: { error: 'INVALID_STATE', message: 'completed transfers cannot be renamed through this endpoint' }
@@ -591,11 +591,11 @@ test('eMule BB manager reports REST rename failures without throwing', async () 
 
     const result = await manager.renameFile('abcdefabcdefabcdefabcdefabcdefab', 'renamed.bin');
     assert.equal(result.success, false);
-    assert.match(result.error, /eMule BB INVALID_STATE: completed transfers cannot be renamed/);
+    assert.match(result.error, /eMuleBB INVALID_STATE: completed transfers cannot be renamed/);
   });
 });
 
-test('eMule BB rename support is preserved through unified item assembly', () => {
+test('eMuleBB rename support is preserved through unified item assembly', () => {
   const [downloadItem] = assembleUnifiedItems(
     [{
       clientType: 'emulebb',
@@ -628,7 +628,7 @@ test('eMule BB rename support is preserved through unified item assembly', () =>
   assert.equal(sharedItem.renameSupported, false);
 });
 
-test('eMule BB manager assigns categories by existing name and handles delete shapes', async () => {
+test('eMuleBB manager assigns categories by existing name and handles delete shapes', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }, { id: 3, name: 'Linux' }] } };
@@ -685,7 +685,7 @@ test('eMule BB manager assigns categories by existing name and handles delete sh
   });
 });
 
-test('eMule BB manager creates, edits, and deletes categories through REST', async () => {
+test('eMuleBB manager creates, edits, and deletes categories through REST', async () => {
   const categories = [{ id: 0, name: 'Default' }];
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
@@ -724,7 +724,7 @@ test('eMule BB manager creates, edits, and deletes categories through REST', asy
   });
 });
 
-test('eMule BB manager downloads native search results with selected category', async () => {
+test('eMuleBB manager downloads native search results with selected category', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
       return { body: { items: [{ id: 0, name: 'Default' }, { id: 3, name: 'Linux' }] } };
@@ -750,7 +750,7 @@ test('eMule BB manager downloads native search results with selected category', 
   });
 });
 
-test('eMule BB manager uses final operation routes for common controls', async () => {
+test('eMuleBB manager uses final operation routes for common controls', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/transfers/abcdefabcdefabcdefabcdefabcdefab/operations/pause') {
       assert.deepEqual(body, {});
@@ -788,7 +788,7 @@ test('eMule BB manager uses final operation routes for common controls', async (
   });
 });
 
-test('eMule BB manager sends explicit search method and file type payloads', async () => {
+test('eMuleBB manager sends explicit search method and file type payloads', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       if (body.query === 'ubuntu') {
@@ -833,7 +833,7 @@ test('eMule BB manager sends explicit search method and file type payloads', asy
   });
 });
 
-test('eMule BB manager keeps cached search results scoped to the requested method', async () => {
+test('eMuleBB manager keeps cached search results scoped to the requested method', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       if (body.method === 'kad') return { body: { id: '20', status: 'running' } };
@@ -868,7 +868,7 @@ test('eMule BB manager keeps cached search results scoped to the requested metho
   });
 });
 
-test('eMule BB manager ignores native search payloads for the wrong method', async () => {
+test('eMuleBB manager ignores native search payloads for the wrong method', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       assert.equal(body.method, 'server');
@@ -896,7 +896,7 @@ test('eMule BB manager ignores native search payloads for the wrong method', asy
   });
 });
 
-test('eMule BB manager accepts automatic searches with resolved native methods', async () => {
+test('eMuleBB manager accepts automatic searches with resolved native methods', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'POST' && url === '/api/v1/searches') {
       assert.equal(body.method, 'automatic');
@@ -924,7 +924,7 @@ test('eMule BB manager accepts automatic searches with resolved native methods',
   });
 });
 
-test('eMule BB manager maps native shared-directory REST operations', async () => {
+test('eMuleBB manager maps native shared-directory REST operations', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/shared-directories') {
       return {
@@ -984,7 +984,7 @@ test('eMule BB manager maps native shared-directory REST operations', async () =
   });
 });
 
-test('eMule BB manager includes REST error codes in request failures', async () => {
+test('eMuleBB manager includes REST error codes in request failures', async () => {
   await withMockEmulebb(() => ({
     status: 401,
     body: { error: 'UNAUTHORIZED', message: 'missing or invalid X-API-Key' }
@@ -992,7 +992,7 @@ test('eMule BB manager includes REST error codes in request failures', async () 
     const manager = createManager(port);
     await assert.rejects(
       manager._request('GET', '/api/v1/app'),
-      /eMule BB UNAUTHORIZED: missing or invalid X-API-Key/
+      /eMuleBB UNAUTHORIZED: missing or invalid X-API-Key/
     );
   });
 });

@@ -11,7 +11,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
-test('eMule BB full UI E2E hooks are present on stable controls', () => {
+test('eMuleBB full UI E2E hooks are present on stable controls', () => {
   const checks = [
     ['static/components/common/NavButton.js', '`nav-${view}`'],
     ['static/components/layout/Sidebar.js', '`nav-${view}`'],
@@ -68,7 +68,7 @@ test('eMule BB full UI E2E hooks are present on stable controls', () => {
   }
 });
 
-test('major eMule BB integration views expose stable view hooks', () => {
+test('major eMuleBB integration views expose stable view hooks', () => {
   const viewHooks = {
     'static/components/views/HomeView.js': "'view-home'",
     'static/components/views/SearchView.js': "'view-search'",

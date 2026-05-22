@@ -2,7 +2,7 @@
  * SharedDirsModal Component (Experimental)
  *
  * Modal for managing ED2K shared directories.
- * Uses native eMule BB shared-directory APIs when available and falls back to
+ * Uses native eMuleBB shared-directory APIs when available and falls back to
  * aMule's shareddir.dat file management.
  */
 

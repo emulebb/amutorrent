@@ -91,7 +91,7 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
   }
 });
 
-test('configuration defaults expose eMule BB env metadata for startup wizard', () => {
+test('configuration defaults expose eMuleBB env metadata for startup wizard', () => {
   const { config, restore } = reloadConfigWithEnv({
     EMULEBB_ENABLED: 'true',
     EMULEBB_HOST: '127.0.0.1',
@@ -123,7 +123,7 @@ test('configuration defaults expose eMule BB env metadata for startup wizard', (
   }
 });
 
-test('eMule BB setup tester accepts wrapped v1 app contract', async () => {
+test('eMuleBB setup tester accepts wrapped v1 app contract', async () => {
   await withMockHttp(({ method, url }) => {
     assert.equal(method, 'GET');
     assert.equal(url, '/api/v1/app');
@@ -141,12 +141,12 @@ test('eMule BB setup tester accepts wrapped v1 app contract', async () => {
     const result = await configTester.testEmulebbConnection('127.0.0.1', port, 'test-key');
 
     assert.equal(result.success, true);
-    assert.equal(result.message, 'Connected to eMule BB 0.7.3 x64');
+    assert.equal(result.message, 'Connected to eMuleBB 0.7.3 x64');
     assert.equal(requests[0].headers['x-api-key'], 'test-key');
   });
 });
 
-test('configuration accepts aMule and eMule BB as separate ED2K backends', () => {
+test('configuration accepts aMule and eMuleBB as separate ED2K backends', () => {
   const { config, restore } = reloadConfigWithEnv({});
   const clientMeta = require('../server/lib/clientMeta');
 
@@ -162,7 +162,7 @@ test('configuration accepts aMule and eMule BB as separate ED2K backends', () =>
       },
       {
         type: 'emulebb',
-        name: 'eMule BB native backend',
+        name: 'eMuleBB native backend',
         host: '127.0.0.1',
         port: 4711,
         apiKey: 'emulebb-key',

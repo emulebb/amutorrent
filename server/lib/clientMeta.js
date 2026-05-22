@@ -66,7 +66,7 @@ const CLIENT_TYPES = {
   },
   emulebb: {
     networkType: 'ed2k',
-    displayName: 'eMule BB',
+    displayName: 'eMuleBB',
     metricsPrefix: 'eb_',
     hashLength: 32,
     statusField: 'statusText',

@@ -194,7 +194,7 @@ async function requestEmulebbVersion(host, port, apiKey, useSsl = false, basePat
         try {
           payload = text ? JSON.parse(text) : null;
         } catch (err) {
-          return reject(new Error(`Invalid JSON from eMule BB: ${err.message}`));
+          return reject(new Error(`Invalid JSON from eMuleBB: ${err.message}`));
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
           return reject(new Error(payload?.message || `HTTP ${res.statusCode}`));
@@ -218,7 +218,7 @@ function unwrapEmulebbPayload(payload) {
 function isEmulebbAppPayload(payload) {
   if (!payload || typeof payload !== 'object') return false;
   const name = payload.appName || payload.name;
-  return name === 'eMule' || name === 'eMule BB';
+  return name === 'eMule' || name === 'eMuleBB';
 }
 
 async function testEmulebbConnection(host, port, apiKey, useSsl = false, basePath = '') {
@@ -227,9 +227,9 @@ async function testEmulebbConnection(host, port, apiKey, useSsl = false, basePat
     const version = unwrapEmulebbPayload(await requestEmulebbVersion(host, port, apiKey, useSsl, basePath));
     if (isEmulebbAppPayload(version)) {
       result.success = true;
-      result.message = `Connected to eMule BB ${version.version || ''}`.trim();
+      result.message = `Connected to eMuleBB ${version.version || ''}`.trim();
     } else {
-      result.error = 'Unexpected response from eMule BB';
+      result.error = 'Unexpected response from eMuleBB';
     }
   } catch (err) {
     result.error = classifyNetworkError(err);

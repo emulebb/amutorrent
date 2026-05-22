@@ -51,8 +51,8 @@ const ClientIcon = ({ client, clientType, size = 16, float = false, className = 
     alt = 'Tr';
     src = '/static/logo-transmission.svg';
   } else if (clientValue === 'emulebb') {
-    defaultTitle = 'ED2K (eMule BB)';
-    alt = 'eMule BB';
+    defaultTitle = 'ED2K (eMuleBB)';
+    alt = 'eMuleBB';
     src = '/static/logo-brax.png';
   } else if (clientValue === 'amule' || clientValue === 'ed2k') {
     defaultTitle = 'ED2K (aMule)';

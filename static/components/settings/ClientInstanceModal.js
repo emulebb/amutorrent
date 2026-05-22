@@ -30,11 +30,11 @@ const CLIENT_FIELDS = {
     { field: 'sharedFilesReloadIntervalHours', label: 'Shared Files Auto-Reload Interval (hours)', description: 'Hours between automatic shared files reload (0 = disabled, default: 3). This makes aMule rescan shared directories periodically.', placeholder: '3', type: 'number', parseValue: v => parseInt(v) || 0, defaultValue: 3 }
   ],
   emulebb: [
-    { field: 'host', label: 'Host', description: 'eMule BB WebServer host address', placeholder: '127.0.0.1', defaultValue: '127.0.0.1', required: true },
-    { field: 'port', label: 'Port', description: 'eMule BB WebServer port (default: 4711)', placeholder: '4711', defaultValue: 4711, type: 'number', required: true, parseValue: v => parseInt(v, 10) || 4711 },
-    { field: 'apiKey', label: 'API Key', description: 'eMule BB REST API key from WebServer preferences', placeholder: 'Enter eMule BB API key', required: true, sensitive: true },
+    { field: 'host', label: 'Host', description: 'eMuleBB WebServer host address', placeholder: '127.0.0.1', defaultValue: '127.0.0.1', required: true },
+    { field: 'port', label: 'Port', description: 'eMuleBB WebServer port (default: 4711)', placeholder: '4711', defaultValue: 4711, type: 'number', required: true, parseValue: v => parseInt(v, 10) || 4711 },
+    { field: 'apiKey', label: 'API Key', description: 'eMuleBB REST API key from WebServer preferences', placeholder: 'Enter eMuleBB API key', required: true, sensitive: true },
     { field: 'path', label: 'URL Path (Optional)', description: 'Base path when behind a reverse proxy', placeholder: 'Leave empty if not using a reverse proxy' },
-    { field: 'useSsl', label: 'Use SSL (HTTPS)', description: 'Connect to eMule BB using HTTPS', toggle: true }
+    { field: 'useSsl', label: 'Use SSL (HTTPS)', description: 'Connect to eMuleBB using HTTPS', toggle: true }
   ],
   rtorrent: [
     { field: 'mode', label: 'Connection Mode', description: 'HTTP: Connect via XML-RPC HTTP proxy (nginx/ruTorrent). SCGI: Connect directly to rTorrent via SCGI TCP. SCGI Socket: Connect via Unix domain socket.', select: true, options: [{ value: 'http', label: 'HTTP (XML-RPC proxy)' }, { value: 'scgi', label: 'SCGI (direct TCP)' }, { value: 'scgi-socket', label: 'SCGI (Unix socket)' }], defaultValue: 'http' },
@@ -73,7 +73,7 @@ const CLIENT_FIELDS = {
 
 const TYPE_LABELS = {
   amule: 'aMule',
-  emulebb: 'eMule BB',
+  emulebb: 'eMuleBB',
   rtorrent: 'rTorrent',
   qbittorrent: 'qBittorrent',
   deluge: 'Deluge',

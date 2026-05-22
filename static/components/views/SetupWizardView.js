@@ -200,9 +200,9 @@ const SetupWizardView = ({ onComplete }) => {
           if (!formData.amule.password && !meta?.fromEnv.amulePassword) errors.push('aMule password is required');
         }
         if (formData.emulebb?.enabled) {
-          if (!formData.emulebb.host) errors.push('eMule BB host is required');
-          if (!formData.emulebb.port) errors.push('eMule BB port is required');
-          if (!formData.emulebb.apiKey && !meta?.fromEnv.emulebbApiKey) errors.push('eMule BB API key is required');
+          if (!formData.emulebb.host) errors.push('eMuleBB host is required');
+          if (!formData.emulebb.port) errors.push('eMuleBB port is required');
+          if (!formData.emulebb.apiKey && !meta?.fromEnv.emulebbApiKey) errors.push('eMuleBB API key is required');
         }
 
         if (errors.length > 0) {
@@ -251,7 +251,7 @@ const SetupWizardView = ({ onComplete }) => {
 
         // Cross-validation: at least one client must be enabled
         if (formData.amule.enabled === false && !formData.emulebb?.enabled && !formData.rtorrent.enabled && !formData.qbittorrent?.enabled && !formData.deluge?.enabled && !formData.transmission?.enabled) {
-          setStepValidationError('At least one download client (aMule, eMule BB, rTorrent, qBittorrent, Deluge, or Transmission) must be enabled');
+          setStepValidationError('At least one download client (aMule, eMuleBB, rTorrent, qBittorrent, Deluge, or Transmission) must be enabled');
           return;
         }
         setStepValidationError(null);
@@ -330,7 +330,7 @@ const SetupWizardView = ({ onComplete }) => {
           const data = await testConfig(testPayload);
           const newResults = {};
           if (data?.results?.amule) newResults.amule = { ...data.results.amule, _label: 'aMule Connection' };
-          if (data?.results?.emulebb) newResults.emulebb = { ...data.results.emulebb, _label: 'eMule BB Connection' };
+          if (data?.results?.emulebb) newResults.emulebb = { ...data.results.emulebb, _label: 'eMuleBB Connection' };
           setClientTestResults(prev => ({ ...prev, ...newResults }));
         }
       } else if (currentStep === 3) {
@@ -403,7 +403,7 @@ const SetupWizardView = ({ onComplete }) => {
       // Extract client results into clientTestResults
       const newClientResults = {};
       if (data?.results?.amule) newClientResults.amule = { ...data.results.amule, _label: 'aMule Connection' };
-      if (data?.results?.emulebb) newClientResults.emulebb = { ...data.results.emulebb, _label: 'eMule BB Connection' };
+      if (data?.results?.emulebb) newClientResults.emulebb = { ...data.results.emulebb, _label: 'eMuleBB Connection' };
       if (data?.results?.rtorrent) newClientResults.rtorrent = { ...data.results.rtorrent, _label: 'rTorrent Connection' };
       if (data?.results?.qbittorrent) newClientResults.qbittorrent = { ...data.results.qbittorrent, _label: 'qBittorrent Connection' };
       if (data?.results?.deluge) newClientResults.deluge = { ...data.results.deluge, _label: 'Deluge Connection' };
@@ -448,7 +448,7 @@ const SetupWizardView = ({ onComplete }) => {
       // Extract client results for per-instance tracking
       const newClientResults = {};
       if (results?.results?.amule) newClientResults.amule = { ...results.results.amule, _label: 'aMule Connection' };
-      if (results?.results?.emulebb) newClientResults.emulebb = { ...results.results.emulebb, _label: 'eMule BB Connection' };
+      if (results?.results?.emulebb) newClientResults.emulebb = { ...results.results.emulebb, _label: 'eMuleBB Connection' };
       if (results?.results?.rtorrent) newClientResults.rtorrent = { ...results.results.rtorrent, _label: 'rTorrent Connection' };
       if (results?.results?.qbittorrent) newClientResults.qbittorrent = { ...results.results.qbittorrent, _label: 'qBittorrent Connection' };
       if (results?.results?.deluge) newClientResults.deluge = { ...results.results.deluge, _label: 'Deluge Connection' };
@@ -761,7 +761,7 @@ const SetupWizardView = ({ onComplete }) => {
 
     return h('div', {},
       h('h2', { className: 'text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2' }, 'ED2K Integration'),
-      h('p', { className: 'text-gray-600 dark:text-gray-400 mb-6' }, 'Configure aMule and/or eMule BB for ed2k/Kademlia downloads. Either client can be used on its own.'),
+      h('p', { className: 'text-gray-600 dark:text-gray-400 mb-6' }, 'Configure aMule and/or eMuleBB for ed2k/Kademlia downloads. Either client can be used on its own.'),
 
       isDocker && h(AlertBox, { type: 'info', className: 'mb-6' },
         h('p', {}, 'You are running in Docker. If an ED2K client is running on your host machine, use the special hostname ', h('code', { className: 'bg-white dark:bg-gray-800 px-1 rounded' }, 'host.docker.internal'), '. If it is running in another container, use that container\'s name as the hostname.')
@@ -836,11 +836,11 @@ const SetupWizardView = ({ onComplete }) => {
       ),
 
       h('div', { className: 'bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6' },
-        h('h3', { className: 'text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4' }, 'eMule BB (REST API)'),
+        h('h3', { className: 'text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4' }, 'eMuleBB (REST API)'),
 
         h(EnableToggle, {
-          label: 'Enable eMule BB',
-          description: 'Connect to eMule BB using its REST API',
+          label: 'Enable eMuleBB',
+          description: 'Connect to eMuleBB using its REST API',
           enabled: formData.emulebb?.enabled || false,
           onChange: (enabled) => updateField('emulebb', 'enabled', enabled)
         }),
@@ -848,7 +848,7 @@ const SetupWizardView = ({ onComplete }) => {
         formData.emulebb?.enabled && h('div', { className: 'mt-4 space-y-4' },
           h(ConfigField, {
             label: 'Host',
-            description: 'eMule BB REST API host address',
+            description: 'eMuleBB REST API host address',
             value: formData.emulebb.host,
             onChange: (value) => updateField('emulebb', 'host', value),
             placeholder: '127.0.0.1',
@@ -857,7 +857,7 @@ const SetupWizardView = ({ onComplete }) => {
           }),
           h(ConfigField, {
             label: 'Port',
-            description: 'eMule BB REST API port (default: 4711)',
+            description: 'eMuleBB REST API port (default: 4711)',
             value: formData.emulebb.port,
             onChange: (value) => updateField('emulebb', 'port', value),
             type: 'number',
@@ -867,12 +867,12 @@ const SetupWizardView = ({ onComplete }) => {
           }),
 
           meta?.fromEnv.emulebbApiKey && h(AlertBox, { type: 'warning' },
-            h('p', {}, 'eMule BB API key is set via EMULEBB_API_KEY environment variable and cannot be changed here. To change the API key, update the environment variable and restart the server.')
+            h('p', {}, 'eMuleBB API key is set via EMULEBB_API_KEY environment variable and cannot be changed here. To change the API key, update the environment variable and restart the server.')
           ),
 
           !meta?.fromEnv.emulebbApiKey && h(ConfigField, {
             label: 'API Key',
-            description: 'eMule BB REST API key',
+            description: 'eMuleBB REST API key',
             value: formData.emulebb.apiKey,
             onChange: (value) => updateField('emulebb', 'apiKey', value),
             required: formData.emulebb?.enabled,
@@ -881,14 +881,14 @@ const SetupWizardView = ({ onComplete }) => {
             h(PasswordField, {
               value: formData.emulebb.apiKey,
               onChange: (value) => updateField('emulebb', 'apiKey', value),
-              placeholder: 'Enter eMule BB API key',
+              placeholder: 'Enter eMuleBB API key',
               disabled: meta?.fromEnv.emulebbApiKey
             })
           ),
 
           h(ConfigField, {
             label: 'Path (Optional)',
-            description: 'REST API base path when eMule BB is behind a reverse proxy',
+            description: 'REST API base path when eMuleBB is behind a reverse proxy',
             value: formData.emulebb.path,
             onChange: (value) => updateField('emulebb', 'path', value),
             placeholder: 'Leave empty for default',
@@ -897,7 +897,7 @@ const SetupWizardView = ({ onComplete }) => {
 
           h(EnableToggle, {
             label: 'Use SSL (HTTPS)',
-            description: 'Connect to eMule BB using HTTPS',
+            description: 'Connect to eMuleBB using HTTPS',
             enabled: formData.emulebb?.useSsl || false,
             onChange: (enabled) => updateField('emulebb', 'useSsl', enabled),
             disabled: meta?.fromEnv.emulebbUseSsl
@@ -905,7 +905,7 @@ const SetupWizardView = ({ onComplete }) => {
 
           clientTestResults.emulebb && h(TestResultIndicator, {
             result: clientTestResults.emulebb,
-            label: 'eMule BB Connection Test'
+            label: 'eMuleBB Connection Test'
           })
         )
       ),
@@ -1424,7 +1424,7 @@ const SetupWizardView = ({ onComplete }) => {
       h('h2', { className: 'text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2' }, 'Integrations'),
       h('p', { className: 'text-gray-600 dark:text-gray-400 mb-6' }, 'Configure optional integrations for automatic searches.'),
 
-      // aMuTorrent compatibility APIs are aMule-backed; eMule BB exposes Torznab directly.
+      // aMuTorrent compatibility APIs are aMule-backed; eMuleBB exposes Torznab directly.
       formData.amule.enabled !== false && h(IntegrationConfigInfo, {
         title: '*arr Integration Configuration',
         port: formData.server.port,
@@ -1602,9 +1602,9 @@ const SetupWizardView = ({ onComplete }) => {
           : h('p', { className: 'text-sm text-gray-500 dark:text-gray-500 italic' }, 'Disabled')
       ),
 
-      // eMule BB
+      // eMuleBB
       h('div', { className: 'bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700' },
-        h('h3', { className: 'font-semibold text-gray-900 dark:text-gray-100 mb-2' }, 'eMule BB Connection'),
+        h('h3', { className: 'font-semibold text-gray-900 dark:text-gray-100 mb-2' }, 'eMuleBB Connection'),
         formData.emulebb?.enabled
           ? h('div', {},
               h('p', { className: 'text-sm text-gray-600 dark:text-gray-400' }, `Host: ${formData.emulebb.host}`),
