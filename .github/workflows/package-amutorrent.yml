@@ -19,26 +19,26 @@ jobs:
         with:
           path: repos/amutorrent
 
-      - name: Checkout eMule-build
+      - name: Checkout emulebb-build
         uses: actions/checkout@v6
         with:
-          repository: eMulebb/eMule-build
+          repository: emulebb/emulebb-build
           ref: main
-          path: repos/eMule-build
+          path: repos/emulebb-build
 
-      - name: Checkout eMule-build-tests
+      - name: Checkout emulebb-build-tests
         uses: actions/checkout@v6
         with:
-          repository: eMulebb/eMule-build-tests
+          repository: emulebb/emulebb-build-tests
           ref: main
-          path: repos/eMule-build-tests
+          path: repos/emulebb-build-tests
 
-      - name: Checkout eMule-tooling
+      - name: Checkout emulebb-tooling
         uses: actions/checkout@v6
         with:
-          repository: eMulebb/eMule-tooling
+          repository: emulebb/emulebb-tooling
           ref: main
-          path: repos/eMule-tooling
+          path: repos/emulebb-tooling
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -92,12 +92,12 @@ jobs:
                 ]
               },
               "repos": {
-                "build": "..\\..\\repos\\eMule-build",
-                "tests": "..\\..\\repos\\eMule-build-tests",
-                "tooling": "..\\..\\repos\\eMule-tooling",
+                "build": "..\\..\\repos\\emulebb-build",
+                "tests": "..\\..\\repos\\emulebb-build-tests",
+                "tooling": "..\\..\\repos\\emulebb-tooling",
                 "amutorrent": "..\\..\\repos\\amutorrent",
-                "pages": "..\\..\\repos\\eMulebb-pages",
-                "org_profile": "..\\..\\repos\\eMulebb-org-profile",
+                "pages": "..\\..\\repos\\emulebb-pages",
+                "org_profile": "..\\..\\repos\\emulebb-org-profile",
                 "third_party": "..\\..\\repos\\third_party"
               }
             }
@@ -106,7 +106,7 @@ jobs:
 
       - name: Build package
         env:
-          PYTHONPATH: ${{ github.workspace }}\repos\eMule-build
+          PYTHONPATH: ${{ github.workspace }}\repos\emulebb-build
         run: >
           python -m emule_workspace package-amutorrent
           --workspace-root .

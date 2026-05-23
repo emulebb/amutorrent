@@ -258,7 +258,7 @@ When this checkout is inside the canonical eMuleBB workspace, developers may
 opt into the shared workspace normalization hook from the repository root:
 
 ```powershell
-git config core.hooksPath ..\eMule-tooling\hooks
+git config core.hooksPath ..\emulebb-tooling\hooks
 ```
 
 This is local Git configuration; it should not be committed.

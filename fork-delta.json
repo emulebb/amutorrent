@@ -69,7 +69,7 @@
     },
     {
       "path": "docs",
-      "rule": "Prefer upstream content; keep fork-specific workspace docs in eMule-tooling."
+      "rule": "Prefer upstream content; keep fork-specific workspace docs in emulebb-tooling."
     }
   ],
   "rebaseWorkflow": [
