@@ -73,6 +73,10 @@
     }
   ],
   "rebaseWorkflow": [
+    "Scheduled GitHub workflow `.github/workflows/nightly-upstream.yml` checks upstream/main daily and exits without publishing when upstream is already contained in origin/main.",
+    "When upstream moved, the workflow rebases `automation/upstream-nightly` on upstream/main and stops before touching main if conflicts occur.",
+    "After a conflict-free rebase, the workflow builds the x64 Windows package and only then pushes the rebased commit to origin/main.",
+    "The workflow publishes an `amutorrent-nightly-*` prerelease and deletes older aMuTorrent nightly prereleases plus tags.",
     "git fetch upstream",
     "git checkout -b upstream-sync/YYYYMMDD main",
     "git rebase upstream/main",
