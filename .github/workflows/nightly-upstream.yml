@@ -1,0 +1,358 @@
+# Nightly upstream sync - rebases the eMuleBB aMuTorrent fork only when
+# upstream moved, builds the Windows package, and publishes one prerelease.
+
+name: Nightly upstream sync
+
+on:
+  schedule:
+    # GitHub schedules run in UTC. Keep this away from the other eMuleBB
+    # nightly minute slots and the top-of-hour Actions queue spike.
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build and publish even when upstream has not moved.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: amutorrent-nightly-upstream
+  cancel-in-progress: false
+
+env:
+  AMUTORRENT_NIGHTLY_BASE_VERSION: "0.7.3"
+
+jobs:
+  prepare:
+    name: Check upstream and prepare rebased ref
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.prepare.outputs.changed }}
+      build_ref: ${{ steps.prepare.outputs.build_ref }}
+      nightly_tag: ${{ steps.prepare.outputs.nightly_tag }}
+      origin_main_sha: ${{ steps.prepare.outputs.origin_main_sha }}
+      package_version: ${{ steps.prepare.outputs.package_version }}
+      release_date: ${{ steps.prepare.outputs.release_date }}
+      short_upstream: ${{ steps.prepare.outputs.short_upstream }}
+      upstream_sha: ${{ steps.prepare.outputs.upstream_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Rebase fork branch when upstream changed
+        id: prepare
+        env:
+          FORCE: ${{ inputs.force || false }}
+        run: |
+          set -euo pipefail
+          git config user.name "eMuleBB automation"
+          git config user.email "actions@users.noreply.github.com"
+          git remote add upstream https://github.com/got3nks/amutorrent.git
+          git fetch origin main --tags
+          git fetch origin automation/upstream-nightly || true
+          git fetch upstream main --tags
+
+          origin_main_sha="$(git rev-parse origin/main)"
+          upstream_sha="$(git rev-parse upstream/main)"
+
+          echo "origin/main: ${origin_main_sha}"
+          echo "upstream/main: ${upstream_sha}"
+
+          if [[ "${FORCE}" != "true" ]] && git merge-base --is-ancestor "${upstream_sha}" origin/main; then
+              echo "No new upstream commits since main was last published."
+              {
+                  echo "changed=false"
+                  echo "origin_main_sha=${origin_main_sha}"
+                  echo "upstream_sha=${upstream_sha}"
+              } >> "${GITHUB_OUTPUT}"
+              exit 0
+          fi
+
+          git checkout -B automation/upstream-nightly origin/main
+          git rebase upstream/main
+
+          release_date="$(date -u +%Y%m%d)"
+          short_upstream="${upstream_sha:0:8}"
+          nightly_tag="amutorrent-nightly-${release_date}-${short_upstream}"
+          package_version="${AMUTORRENT_NIGHTLY_BASE_VERSION}-nightly.${release_date}.${short_upstream}"
+
+          git tag -f "${nightly_tag}"
+          git push origin HEAD:refs/heads/automation/upstream-nightly --force-with-lease
+          git push origin "refs/tags/${nightly_tag}" --force
+
+          {
+              echo "changed=true"
+              echo "build_ref=refs/tags/${nightly_tag}"
+              echo "nightly_tag=${nightly_tag}"
+              echo "origin_main_sha=${origin_main_sha}"
+              echo "package_version=${package_version}"
+              echo "release_date=${release_date}"
+              echo "short_upstream=${short_upstream}"
+              echo "upstream_sha=${upstream_sha}"
+          } >> "${GITHUB_OUTPUT}"
+
+  build:
+    name: Build Windows package
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 180
+    steps:
+      - name: Checkout aMuTorrent
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.build_ref }}
+          path: repos/amutorrent
+
+      - name: Checkout emulebb-build
+        uses: actions/checkout@v6
+        with:
+          repository: emulebb/emulebb-build
+          ref: main
+          path: repos/emulebb-build
+
+      - name: Checkout emulebb-build-tests
+        uses: actions/checkout@v6
+        with:
+          repository: emulebb/emulebb-build-tests
+          ref: main
+          path: repos/emulebb-build-tests
+
+      - name: Checkout emulebb-tooling
+        uses: actions/checkout@v6
+        with:
+          repository: emulebb/emulebb-tooling
+          ref: main
+          path: repos/emulebb-tooling
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            repos/amutorrent/package-lock.json
+            repos/amutorrent/server/package-lock.json
+
+      - name: Install workspace package dependencies
+        run: python -m pip install click "pydantic>=2.0"
+
+      - name: Create CI workspace manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path workspaces/workspace | Out-Null
+          @'
+          {
+            "schema_version": 2,
+            "emule_workspace_root": "..\\..",
+            "workspace": {
+              "name": "workspace",
+              "app_repo": {
+                "seed_repo": {
+                  "name": "emulebb",
+                  "path": "..\\..\\repos\\emulebb",
+                  "branch": "main"
+                },
+                "variants": [
+                  {
+                    "name": "main",
+                    "path": "app\\emulebb-main",
+                    "branch": "main"
+                  },
+                  {
+                    "name": "community",
+                    "path": "app\\emulebb-community-baseline",
+                    "branch": "baseline/community-0.72a"
+                  },
+                  {
+                    "name": "tracing-harness",
+                    "path": "app\\emulebb-community-tracing-harness",
+                    "branch": "tracing-harness/community-0.72a"
+                  }
+                ]
+              },
+              "repos": {
+                "build": "..\\..\\repos\\emulebb-build",
+                "tests": "..\\..\\repos\\emulebb-build-tests",
+                "tooling": "..\\..\\repos\\emulebb-tooling",
+                "amutorrent": "..\\..\\repos\\amutorrent",
+                "pages": "..\\..\\repos\\emulebb-pages",
+                "org_profile": "..\\..\\repos\\emulebb-org-profile",
+                "third_party": "..\\..\\repos\\third_party"
+              }
+            }
+          }
+          '@ | Set-Content -Encoding utf8 -NoNewline workspaces/workspace/deps.json
+
+      - name: Build package
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+          PYTHONPATH: ${{ github.workspace }}\repos\emulebb-build
+        run: >
+          python -m emule_workspace package-amutorrent
+          --workspace-root .
+          --config Release
+          --platform x64
+          --release-version $env:PACKAGE_VERSION
+          --clean
+
+      - name: Stage package assets
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $releaseRoot = Join-Path $env:GITHUB_WORKSPACE "workspaces\workspace\state\release\emulebb-v$env:PACKAGE_VERSION"
+          $artifactRoot = Join-Path $env:GITHUB_WORKSPACE "nightly-artifacts"
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.zip") -Destination $artifactRoot
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.manifest.json") -Destination $artifactRoot
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.sbom.spdx.json") -Destination $artifactRoot
+          Get-ChildItem $artifactRoot
+
+      - name: Upload package assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
+          path: nightly-artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-main:
+    name: Publish rebased main
+    needs:
+      - prepare
+      - build
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.build_ref }}
+
+      - name: Update main after green build
+        run: |
+          set -euo pipefail
+          git push origin \
+              "HEAD:refs/heads/main" \
+              --force-with-lease="refs/heads/main:${{ needs.prepare.outputs.origin_main_sha }}"
+
+  cleanup-failed-build:
+    name: Remove failed nightly tag
+    needs:
+      - prepare
+      - build
+      - publish-main
+    if: >-
+      always() &&
+      needs.prepare.outputs.changed == 'true' &&
+      (needs.build.result != 'success' || needs.publish-main.result != 'success')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete tag for failed nightly
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.nightly_tag }}
+        run: |
+          set -euo pipefail
+          gh api \
+              --method DELETE \
+              "repos/${{ github.repository }}/git/refs/tags/${TAG}" || true
+
+  release:
+    name: Publish nightly prerelease
+    needs:
+      - prepare
+      - build
+      - publish-main
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download package assets
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish or refresh prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+          TAG: ${{ needs.prepare.outputs.nightly_tag }}
+          UPSTREAM_SHA: ${{ needs.prepare.outputs.upstream_sha }}
+        run: |
+          set -euo pipefail
+          notes="$(mktemp)"
+          {
+              echo "Automated eMuleBB aMuTorrent nightly built after upstream moved."
+              echo
+              echo "Upstream main: ${UPSTREAM_SHA}"
+              echo "Build ref: ${TAG}"
+              echo "Package version: ${PACKAGE_VERSION}"
+              echo
+              echo "This prerelease is generated by the scheduled upstream sync workflow."
+          } > "${notes}"
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+              gh release upload "${TAG}" dist/* --clobber
+              gh release edit "${TAG}" --title "aMuTorrent nightly ${TAG}" --notes-file "${notes}" --prerelease
+          else
+              gh release create "${TAG}" \
+                  --title "aMuTorrent nightly ${TAG}" \
+                  --notes-file "${notes}" \
+                  --prerelease \
+                  dist/*
+          fi
+
+      - name: Keep only latest nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NIGHTLY_TAG_PREFIX: amutorrent-nightly-
+        run: |
+          set -euo pipefail
+          jq_filter='.[] | select(.isPrerelease and (.tagName | startswith("'"${NIGHTLY_TAG_PREFIX}"'"))) | [.createdAt, .tagName] | @tsv'
+          mapfile -t old_tags < <(
+            gh release list \
+              --repo "${{ github.repository }}" \
+              --limit 100 \
+              --json tagName,isPrerelease,createdAt \
+              --jq "${jq_filter}" |
+            sort -r |
+            tail -n +2 |
+            cut -f2
+          )
+
+          if [[ "${#old_tags[@]}" -eq 0 ]]; then
+              echo "No older nightly releases to delete."
+              exit 0
+          fi
+
+          for tag in "${old_tags[@]}"; do
+              echo "Deleting old nightly release and tag: ${tag}"
+              gh release delete "${tag}" \
+                  --repo "${{ github.repository }}" \
+                  --cleanup-tag \
+                  --yes
+          done
+
+  no-change:
+    name: No upstream changes
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'false'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "No upstream changes; nightly build and release skipped."
