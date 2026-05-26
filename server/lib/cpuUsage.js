@@ -1,10 +1,11 @@
 /**
  * CPU Usage Utility
- * Reads CPU usage from /proc/stat
- * Works both natively and inside Docker
+ * Reads CPU usage from /proc/stat where available, otherwise from Node's OS CPU counters.
+ * Works natively on Windows and inside Docker/Linux.
  */
 
 const fs = require('fs').promises;
+const os = require('os');
 
 let previousCpuInfo = null;
 
@@ -12,7 +13,7 @@ let previousCpuInfo = null;
  * Parse CPU times from /proc/stat
  * @returns {Object} CPU times breakdown
  */
-async function readCpuTimes() {
+async function readCpuTimesFromProc() {
     try {
         const content = await fs.readFile('/proc/stat', 'utf8');
         const lines = content.split('\n');
@@ -35,6 +36,43 @@ async function readCpuTimes() {
     } catch (err) {
         return null;
     }
+}
+
+function readCpuTimesFromOsCpus(cpus = os.cpus()) {
+    if (!Array.isArray(cpus) || cpus.length === 0) {
+        return null;
+    }
+
+    let idleTime = 0;
+    let totalTime = 0;
+    for (const cpu of cpus) {
+        const times = cpu && cpu.times;
+        if (!times) {
+            return null;
+        }
+        const user = Number(times.user) || 0;
+        const nice = Number(times.nice) || 0;
+        const sys = Number(times.sys) || 0;
+        const idle = Number(times.idle) || 0;
+        const irq = Number(times.irq) || 0;
+        idleTime += idle;
+        totalTime += user + nice + sys + idle + irq;
+    }
+
+    if (totalTime <= 0) {
+        return null;
+    }
+    return { idleTime, totalTime };
+}
+
+async function readCpuTimes() {
+    if (process.platform !== 'win32') {
+        const procTimes = await readCpuTimesFromProc();
+        if (procTimes) {
+            return procTimes;
+        }
+    }
+    return readCpuTimesFromOsCpus();
 }
 
 /**
@@ -77,5 +115,6 @@ async function getCpuUsage() {
 }
 
 module.exports = {
-    getCpuUsage
+    getCpuUsage,
+    _readCpuTimesFromOsCpus: readCpuTimesFromOsCpus
 };

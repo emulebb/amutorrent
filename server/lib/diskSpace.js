@@ -1,7 +1,7 @@
 /**
  * Disk Space Utility
- * Aggregates disk space across real filesystems
- * Works both natively and inside Docker
+ * Aggregates disk space across real filesystems where mount metadata is available.
+ * Falls back to the configured data path on Windows and restricted hosts.
  */
 
 const fs = require('fs').promises;
@@ -60,16 +60,37 @@ async function statMount(mountPoint) {
 
     const blockSize = stats.bsize;
     const total = stats.blocks * blockSize;
-    const free = stats.bavail * blockSize;
-    const used = total - (stats.bfree * blockSize);
+    const freeBlocks = Number.isFinite(Number(stats.bavail)) ? stats.bavail : stats.bfree;
+    const free = freeBlocks * blockSize;
+    const used = Math.max(0, total - free);
 
     return {total, free, used};
+}
+
+function buildDiskSpaceResult({total, free, used}) {
+    const percentUsed = total > 0 ? Math.round((used / total) * 100) : 0;
+    return {total, used, free, percentUsed};
+}
+
+async function getSinglePathDiskSpace(rootPath) {
+    const targetPath = rootPath || process.cwd();
+    return buildDiskSpaceResult(await statMount(targetPath));
 }
 
 /**
  * Aggregate disk space across all relevant filesystems
  */
-async function getDiskSpace() {
+async function getDiskSpace(rootPath = process.cwd()) {
+    if (process.platform === 'win32') {
+        try {
+            return await getSinglePathDiskSpace(rootPath);
+        } catch (err) {
+            return {
+                total: 0, used: 0, free: 0, percentUsed: 0, error: err.message
+            };
+        }
+    }
+
     try {
         const mounts = await getMounts();
 
@@ -102,15 +123,19 @@ async function getDiskSpace() {
             }
         }
 
-        const percentUsed = total > 0 ? Math.round((used / total) * 100) : 0;
+        if (total <= 0) {
+            return await getSinglePathDiskSpace(rootPath);
+        }
 
-        return {
-            total, used, free, percentUsed
-        };
+        return buildDiskSpaceResult({total, used, free});
     } catch (err) {
-        return {
-            total: 0, used: 0, free: 0, percentUsed: 0, error: err.message
-        };
+        try {
+            return await getSinglePathDiskSpace(rootPath);
+        } catch (fallbackErr) {
+            return {
+                total: 0, used: 0, free: 0, percentUsed: 0, error: fallbackErr.message || err.message
+            };
+        }
     }
 }
 
@@ -128,5 +153,6 @@ function formatBytes(bytes) {
 }
 
 module.exports = {
-    getDiskSpace, formatBytes
+    getDiskSpace, formatBytes,
+    _getSinglePathDiskSpace: getSinglePathDiskSpace
 };
