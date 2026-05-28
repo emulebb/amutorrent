@@ -10,7 +10,7 @@ This guide covers all configuration options for aMuTorrent.
 - [Environment Variables](#environment-variables)
 - [Docker Network Configuration](#docker-network-configuration)
 
-> **Download Clients:** See [aMule](./AMULE.md), [rTorrent](./RTORRENT.md), [qBittorrent](./QBITTORRENT.md), [Deluge](./DELUGE.md), and [Transmission](./TRANSMISSION.md) for client-specific setup.
+> **Download Clients:** See [aMule](./AMULE.md), [eMuleBB](./EMULEBB.md), [rTorrent](./RTORRENT.md), [qBittorrent](./QBITTORRENT.md), [Deluge](./DELUGE.md), and [Transmission](./TRANSMISSION.md) for client-specific setup.
 >
 > **Prowlarr:** Search torrents directly from the web UI. See [Prowlarr Setup](./PROWLARR.md).
 >
@@ -32,7 +32,7 @@ When you first access the web interface (or if no configuration exists), an inte
 
 1. **Welcome** - Introduction to the setup process
 2. **Security** - Configure web interface authentication (password protection)
-3. **Download Clients** - Configure aMule, rTorrent, qBittorrent, Deluge, and/or Transmission connections (with testing)
+3. **Download Clients** - Configure aMule, eMuleBB, rTorrent, qBittorrent, Deluge, and/or Transmission connections (with testing)
 4. **Directories** - Set data, logs, and GeoIP directories
 5. **Integrations** - Optionally enable Prowlarr, Sonarr, and Radarr
 6. **Review & Save** - Test all settings and save configuration
@@ -60,7 +60,7 @@ When authentication is enabled, the password must meet these requirements:
 After initial setup, access the Settings page anytime via the sidebar (desktop) or bottom navigation bar (mobile). The Settings page allows you to:
 
 - View and edit all configuration options
-- Test individual configuration sections (aMule, rTorrent, qBittorrent, Deluge, Transmission, Directories, Prowlarr, Sonarr, Radarr)
+- Test individual configuration sections (aMule, eMuleBB, rTorrent, qBittorrent, Deluge, Transmission, Directories, Prowlarr, Sonarr, Radarr)
 - Test all configuration at once before saving
 - Enable/disable integrations with toggle switches
 
@@ -87,6 +87,7 @@ The application uses different precedence rules for sensitive and non-sensitive 
 Sensitive fields include:
 - `WEB_AUTH_PASSWORD` - Web UI authentication password
 - `AMULE_PASSWORD` - aMule EC connection password
+- `EMULEBB_API_KEY` - eMuleBB REST API key
 - `RTORRENT_PASSWORD` - rTorrent HTTP auth password
 - `QBITTORRENT_PASSWORD` - qBittorrent WebUI password
 - `DELUGE_PASSWORD` - Deluge WebUI password
@@ -160,6 +161,14 @@ services:
       - AMULE_PORT=4712
       - AMULE_PASSWORD=your_ec_password  # Locks UI editing
       # - AMULE_SHARED_DIR_DAT=/home/amule/.aMule/shareddir.dat  # Optional: shared directory management
+
+      # eMuleBB Connection (optional)
+      - EMULEBB_ENABLED=true
+      - EMULEBB_HOST=host.docker.internal
+      - EMULEBB_PORT=4711
+      - EMULEBB_API_KEY=your_rest_api_key  # Locks UI editing
+      - EMULEBB_USE_SSL=false
+      - EMULEBB_PATH=
 
       # rTorrent Connection (optional)
       - RTORRENT_ENABLED=true
@@ -252,6 +261,21 @@ services:
 | `AMULE_PASSWORD` | - | aMule EC connection password (locks UI editing) |
 | `AMULE_SHARED_FILES_RELOAD_INTERVAL_HOURS` | `3` | Interval to rescan shared folders |
 | `AMULE_SHARED_DIR_DAT` | - | Path to aMule's `shareddir.dat` file (enables shared directory management) |
+
+#### eMuleBB Connection
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMULEBB_ENABLED` | `false` | Enable eMuleBB REST integration |
+| `EMULEBB_HOST` | `127.0.0.1` | eMuleBB WebServer/REST hostname or IP |
+| `EMULEBB_PORT` | `4711` | eMuleBB WebServer/REST port |
+| `EMULEBB_API_KEY` | - | eMuleBB native REST API key (locks UI editing) |
+| `EMULEBB_USE_SSL` | `false` | Use HTTPS for eMuleBB REST |
+| `EMULEBB_PATH` | - | Optional reverse-proxy base path, such as `/emulebb` |
+| `EMULEBB_ID` | generated | Optional first-instance ID |
+| `EMULEBB_NAME` | `eMuleBB` | Optional display name |
+
+eMuleBB support uses REST. Do not point these settings at an aMule EC port.
 
 #### rTorrent Connection
 
