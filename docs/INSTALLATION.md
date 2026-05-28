@@ -8,6 +8,12 @@ aMuTorrent can be installed using Docker (recommended) or natively.
 
 Available on [Docker Hub](https://hub.docker.com/r/g0t3nks/amutorrent). Supports `linux/amd64` and `linux/arm64`.
 
+The Docker image above is the upstream aMuTorrent distribution. This repository
+is the eMuleBB organization fork; use fork-owned package or image names only
+when they are published by an eMuleBB release. Otherwise, install the upstream
+image intentionally and report eMuleBB-specific integration problems to the
+eMuleBB fork.
+
 ### 1. Pull the image
 
 ```bash
@@ -86,7 +92,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\windows\amut
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/got3nks/amutorrent.git
+git clone https://github.com/emulebb/amutorrent.git
 cd amutorrent
 ```
 

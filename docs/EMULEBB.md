@@ -18,6 +18,16 @@ adapter workflows to operate against eMuleBB.
 The default eMuleBB REST port is `4711`. If eMuleBB is behind a reverse proxy,
 configure the proxy base path in aMuTorrent's **Path** field.
 
+For complete eMuleBB stack setup, adapter boundaries, and Arr behavior, use
+the maintained eMuleBB docs:
+
+- <https://emulebb.github.io/emulebb-tooling/reference/GUIDE-STACK-INTEGRATIONS/>
+- <https://emulebb.github.io/emulebb-tooling/rest/REST-API-ADAPTERS/>
+
+Those contracts matter because eMuleBB's qBittorrent and Torznab surfaces are
+Arr compatibility subsets. They are not full qBittorrent, torrent RSS, tracker,
+peer-management, or generic Newznab provider implementations.
+
 ## Setup Wizard
 
 1. Open aMuTorrent.
@@ -110,3 +120,7 @@ at an HTTP reverse proxy path that does not forward to eMuleBB REST.
 
 Authentication errors mean the REST API key is missing, wrong, or being
 overridden by `EMULEBB_API_KEY`.
+
+Open eMuleBB-specific aMuTorrent integration issues in the eMuleBB fork:
+<https://github.com/emulebb/amutorrent/issues>. Use the upstream issue tracker
+for upstream package/image questions that are unrelated to eMuleBB behavior.

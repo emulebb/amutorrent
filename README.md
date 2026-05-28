@@ -52,6 +52,12 @@ A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, an
 
 **Prerequisites:** At least one of: aMule with External Connections enabled, eMuleBB with REST enabled, rTorrent with XML-RPC enabled, qBittorrent with WebUI enabled, Deluge with WebUI enabled, or Transmission with RPC enabled.
 
+This repository is the eMuleBB organization fork. The Docker image and clone
+commands below are the upstream aMuTorrent distribution unless an eMuleBB
+release explicitly publishes fork-owned assets. Use this fork for eMuleBB
+integration issues and fork development; use upstream package/image references
+when you intentionally want the upstream distribution.
+
 ### 1. Pull the image
 
 Available on [Docker Hub](https://hub.docker.com/r/g0t3nks/amutorrent). Supports `linux/amd64` and `linux/arm64`.
@@ -104,7 +110,7 @@ Open `http://localhost:4000` and follow the setup wizard to configure your downl
 
 ```bash
 # Clone repository
-git clone https://github.com/got3nks/amutorrent.git
+git clone https://github.com/emulebb/amutorrent.git
 cd amutorrent
 
 # Install and build
@@ -212,7 +218,16 @@ Open `http://localhost:4000` and complete the setup wizard.
 - Set up Remote Path Mappings if using Docker
 - See [Integration Guide](./docs/INTEGRATIONS.md) for details
 
-**More help:** Check server logs or open an [issue](https://github.com/got3nks/amutorrent/issues).
+**eMuleBB adapter behavior looks different from qBittorrent?**
+- eMuleBB exposes a qBittorrent-compatible subset for Arr workflows, not a full
+  qBittorrent clone
+- Check the eMuleBB adapter contract before treating no-op or unsupported qBit
+  routes as a bug:
+  <https://emulebb.github.io/emulebb-tooling/rest/REST-API-ADAPTERS/>
+
+**More help:** Check server logs. For this eMuleBB fork, open issues at
+<https://github.com/emulebb/amutorrent/issues>. For upstream packaging or the
+`g0t3nks/amutorrent` Docker image, use the upstream project issue tracker.
 
 ---
 
