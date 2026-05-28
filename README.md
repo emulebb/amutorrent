@@ -4,7 +4,7 @@
 
 <h1 align="center">aMuTorrent</h1>
 
-A unified download manager for aMule, rTorrent, qBittorrent, Deluge, and Transmission. Manage ED2K and BitTorrent downloads from a single modern web interface. Features multi-instance support, user management with SSO, Prowlarr integration for torrent search, Torznab indexer and qBittorrent-compatible API for aMule (Sonarr/Radarr integration), push notifications via Apprise, and GeoIP peer location display. Built with Node.js, WebSockets, and React.
+A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, and Transmission. Manage ED2K and BitTorrent downloads from a single modern web interface. Features multi-instance support, user management with SSO, Prowlarr integration for torrent search, Torznab indexer and qBittorrent-compatible API for ED2K clients (Sonarr/Radarr integration), push notifications via Apprise, and GeoIP peer location display. Built with Node.js, WebSockets, and React.
 
 ![aMuTorrent](./docs/screenshots/home-desktop.png)
 
@@ -12,6 +12,7 @@ A unified download manager for aMule, rTorrent, qBittorrent, Deluge, and Transmi
 
 ### Multi-Client Support
 - **aMule Integration** - Control aMule via the EC (External Connection) protocol
+- **eMuleBB Integration** - Control eMuleBB via its native REST API
 - **rTorrent Integration** - Connect to rTorrent via XML-RPC (HTTP proxy, SCGI TCP, or Unix socket)
 - **qBittorrent Integration** - Connect to qBittorrent via WebUI API
 - **Deluge Integration** - Connect to Deluge via WebUI JSON-RPC
@@ -29,7 +30,7 @@ A unified download manager for aMule, rTorrent, qBittorrent, Deluge, and Transmi
 
 ### Integrations
 - **Prowlarr Search** - Search torrents across multiple indexers (results go to any connected BitTorrent client)
-- **Sonarr/Radarr** - Torznab indexer and qBittorrent-compatible API for aMule
+- **Sonarr/Radarr** - Torznab indexer and qBittorrent-compatible API for ED2K workflows
 - **Push Notifications** - Apprise integration for 80+ notification services
 - **Custom Event Scripts** - Run your own scripts on download events
 
@@ -49,7 +50,7 @@ A unified download manager for aMule, rTorrent, qBittorrent, Deluge, and Transmi
 
 ## Quick Start (Docker)
 
-**Prerequisites:** At least one of: aMule with External Connections enabled, rTorrent with XML-RPC enabled, qBittorrent with WebUI enabled, Deluge with WebUI enabled, or Transmission with RPC enabled.
+**Prerequisites:** At least one of: aMule with External Connections enabled, eMuleBB with REST enabled, rTorrent with XML-RPC enabled, qBittorrent with WebUI enabled, Deluge with WebUI enabled, or Transmission with RPC enabled.
 
 ### 1. Pull the image
 
@@ -124,6 +125,7 @@ Open `http://localhost:4000` and complete the setup wizard.
 |----------|-------------|
 | [Configuration Guide](./docs/CONFIGURATION.md) | Setup wizard, settings, environment variables |
 | [aMule Integration](./docs/AMULE.md) | Connect to aMule via EC protocol |
+| [eMuleBB Integration](./docs/EMULEBB.md) | Connect to eMuleBB via REST API |
 | [rTorrent Integration](./docs/RTORRENT.md) | Connect to rTorrent via XML-RPC (HTTP, SCGI, or Unix socket) |
 | [qBittorrent Integration](./docs/QBITTORRENT.md) | Connect to qBittorrent via WebUI API |
 | [Deluge Integration](./docs/DELUGE.md) | Connect to Deluge via WebUI JSON-RPC |
@@ -169,6 +171,12 @@ Open `http://localhost:4000` and complete the setup wizard.
 - Verify EC is enabled in aMule: Preferences → Remote Controls → External Connections
 - Check the EC password is correct
 - Ensure firewall allows port 4712
+
+**Can't connect to eMuleBB?**
+- Verify WebServer/REST is enabled in eMuleBB
+- Check the native REST API key, host, port, SSL mode, and optional base path
+- Ensure eMuleBB bind address, allowed IPs, and firewall rules allow aMuTorrent
+- See [eMuleBB Integration](./docs/EMULEBB.md) for setup details
 
 **Can't connect to rTorrent?**
 - Ensure XML-RPC is accessible via HTTP proxy (nginx/ruTorrent) or direct SCGI (TCP port or Unix socket)
