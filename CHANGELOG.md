@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.5] - Deluge Statistics & Sonarr/Radarr Auth Compatibility
+
+### ✨ Added
+
+- **Bearer API key auth on the qBittorrent-compat API** — Sonarr's recent (May 2026) qBittorrent download client added an "API Key" mode that sends `Authorization: Bearer <apiKey>` on every request and skips the cookie login round-trip entirely. The protected `/api/v2/*` middleware now accepts this header alongside the existing modes, looking up the key via the user's personal API key. Admin role required. See INTEGRATIONS.md for the per-mode setup table (#52).
+- **Session cookie support on `/api/v2/auth/login`** — successful login now issues `Set-Cookie: SID=<token>; HttpOnly; Path=/api/v2; SameSite=Lax` with a 1h sliding-window TTL. This makes Sonarr's *classic* username/password mode actually work when authentication is enabled (previously broken — see Fixed). qBit-native browser clients also work against the compat layer now. Logout invalidates the session server-side and clears the cookie.
+
+### 🐛 Fixed
+
+- **Deluge statistics zeroed out by every Deluge restart.** Deluge exposes `total_upload` / `total_download` via `core.get_session_status`, which are libtorrent *session* counters that reset to 0 on every Deluge restart. We were writing the raw value straight into `instance_metrics.total_uploaded`, so each restart became a 0-row and the bucket aggregation's `MIN(total_uploaded) = 0 → 0` guard wiped the entire containing bucket — 1h on the 24h chart (mostly unaffected), 1d on the 7d/30d charts (one restart killed an entire day). Reporter saw `7d total < 24h total`. Deluge's WebUI JSON-RPC doesn't expose a stable PID we could key off (the way we do for rTorrent), so the new path detects restarts via value-decrease — session counters are monotonic during a single run by definition, so `current < previous` is itself a reliable signal. New `tracksCounterReset` capability gates a parallel branch in `_writeInstanceMetrics` that mirrors the rTorrent carryforward, just with a different trigger. **Forward-looking**: existing zero-rows in `metrics.db` stay zero (we can't reconstruct what the counter would have been); the 7d/30d charts fill back in correctly over the following 30 days as post-fix samples accumulate (#47).
+- **Sonarr/Radarr's classic username/password mode was silently broken with server-side auth enabled.** Login returned `"Ok."` but never set a Set-Cookie, so every subsequent request hit our Basic-Auth-only middleware demanding credentials Sonarr never sends (it expects the session cookie it just got). The only way *arr integrations worked previously was with `auth.enabled = false`. Fixed in the same pass as the Bearer support — the middleware now accepts the SID cookie issued by login, returns 403 (not 401) on invalid/expired sessions so Sonarr's `QBittorrentProxyV2.cs` re-auth path fires correctly (#52).
+
+---
+
 ## [3.8.4] - aMule Completion via Gap Status
 
 ### 🐛 Fixed
