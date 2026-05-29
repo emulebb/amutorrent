@@ -12,6 +12,10 @@ const CONFIG_MODULE_PATH = require.resolve('../server/modules/config');
 const CONFIG_API_MODULE_PATH = require.resolve('../server/modules/configAPI');
 const configTester = require('../server/lib/configTester');
 
+function localTestHost() {
+  return process.env.X_LOCAL_IP || '127.0.0.1';
+}
+
 async function makeTestDataDir(prefix) {
   await fs.mkdir(TEST_TMP_ROOT, { recursive: true });
   return fs.mkdtemp(path.join(TEST_TMP_ROOT, prefix));
@@ -29,10 +33,11 @@ async function withMockHttp(handler, run) {
       res.end(JSON.stringify(response.body ?? {}));
     });
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
   try {
     const { port } = server.address();
-    return await run({ port, requests });
+    return await run({ host, port, requests });
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
@@ -68,7 +73,7 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
   const { config, restore } = reloadConfigWithEnv({
     AMUTORRENT_DATA_DIR: dataDir,
     PORT: '51987',
-    BIND_ADDRESS: '127.0.0.1'
+    BIND_ADDRESS: localTestHost()
   });
 
   try {
@@ -84,7 +89,7 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
     assert.equal(runtimeConfig.directories.geoip, path.join(path.resolve(dataDir), 'geoip'));
     assert.equal(config.getDataDir(), path.resolve(dataDir));
     assert.equal(config.PORT, 51987);
-    assert.equal(config.HOST, '127.0.0.1');
+    assert.equal(config.HOST, localTestHost());
   } finally {
     restore();
     await fs.rm(dataDir, { recursive: true, force: true });
@@ -94,7 +99,7 @@ test('AMUTORRENT_DATA_DIR isolates config and runtime data paths', async () => {
 test('configuration defaults expose eMuleBB env metadata for startup wizard', () => {
   const { config, restore } = reloadConfigWithEnv({
     EMULEBB_ENABLED: 'true',
-    EMULEBB_HOST: '127.0.0.1',
+    EMULEBB_HOST: localTestHost(),
     EMULEBB_PORT: '4711',
     EMULEBB_API_KEY: 'emulebb-key',
     EMULEBB_USE_SSL: 'true',
@@ -104,7 +109,7 @@ test('configuration defaults expose eMuleBB env metadata for startup wizard', ()
   try {
     const defaults = config.getConfigFromEnv();
     assert.equal(defaults.emulebb.enabled, true);
-    assert.equal(defaults.emulebb.host, '127.0.0.1');
+    assert.equal(defaults.emulebb.host, localTestHost());
     assert.equal(defaults.emulebb.port, 4711);
     assert.equal(defaults.emulebb.apiKey, 'emulebb-key');
     assert.equal(defaults.emulebb.useSsl, true);
@@ -137,8 +142,8 @@ test('eMuleBB setup tester accepts wrapped v1 app contract', async () => {
         meta: { apiVersion: 'v1' }
       }
     };
-  }, async ({ port, requests }) => {
-    const result = await configTester.testEmulebbConnection('127.0.0.1', port, 'test-key');
+  }, async ({ host, port, requests }) => {
+    const result = await configTester.testEmulebbConnection(host, port, 'test-key');
 
     assert.equal(result.success, true);
     assert.equal(result.message, 'Connected to eMuleBB 0.7.3 x64');
@@ -156,14 +161,14 @@ test('configuration accepts aMule and eMuleBB as separate ED2K backends', () => 
       {
         type: 'amule',
         name: 'aMule parity backend',
-        host: '127.0.0.1',
+        host: localTestHost(),
         port: 4712,
         password: 'amule-secret'
       },
       {
         type: 'emulebb',
         name: 'eMuleBB native backend',
-        host: '127.0.0.1',
+        host: localTestHost(),
         port: 4711,
         apiKey: 'emulebb-key',
         useSsl: false
@@ -190,13 +195,13 @@ test('environment-created ED2K clients preserve explicit IDs and names', async (
   const { config, restore } = reloadConfigWithEnv({
     AMUTORRENT_DATA_DIR: dataDir,
     AMULE_ENABLED: 'true',
-    AMULE_HOST: '127.0.0.1',
+    AMULE_HOST: localTestHost(),
     AMULE_PORT: '4712',
     AMULE_PASSWORD: 'amule-secret',
     AMULE_ID: 'cl-amule-004',
     AMULE_NAME: 'cl-amule-004',
     EMULEBB_ENABLED: 'true',
-    EMULEBB_HOST: '127.0.0.1',
+    EMULEBB_HOST: localTestHost(),
     EMULEBB_PORT: '4711',
     EMULEBB_API_KEY: 'emulebb-key',
     EMULEBB_ID: 'cl-emulebb-001',

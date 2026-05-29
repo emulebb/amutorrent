@@ -69,24 +69,24 @@ jobs:
               "name": "workspace",
               "app_repo": {
                 "seed_repo": {
-                  "name": "eMule",
-                  "path": "..\\..\\repos\\eMule",
+                  "name": "emulebb",
+                  "path": "..\\..\\repos\\emulebb",
                   "branch": "main"
                 },
                 "variants": [
                   {
                     "name": "main",
-                    "path": "app\\eMule-main",
+                    "path": "app\\emulebb-main",
                     "branch": "main"
                   },
                   {
                     "name": "community",
-                    "path": "app\\eMule-community-baseline",
+                    "path": "app\\emulebb-community-baseline",
                     "branch": "baseline/community-0.72a"
                   },
                   {
                     "name": "tracing-harness",
-                    "path": "app\\eMule-community-tracing-harness",
+                    "path": "app\\emulebb-community-tracing-harness",
                     "branch": "tracing-harness/community-0.72a"
                   }
                 ]

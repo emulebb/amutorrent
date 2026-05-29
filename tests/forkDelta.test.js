@@ -22,6 +22,8 @@ test('fork delta manifest tracks existing owned and shared seam files', () => {
   assert.equal(manifest.schemaVersion, 'amutorrent-fork-delta/v1');
   assert.equal(manifest.upstream.remote, 'upstream');
   assert.equal(manifest.upstream.branch, 'main');
+  assert.equal(manifest.upstream.baseCommit, '24b13e440d39c3c4dc9ed4516d59e304ec1e61f0');
+  assert.equal(manifest.upstream.baseVersion, '3.8.5');
 
   for (const entry of [...manifest.forkOwned, ...manifest.sharedSeams]) {
     assert.equal(fs.existsSync(path.join(ROOT, entry.path)), true, `${entry.path} must exist`);
@@ -50,15 +52,12 @@ test('fork delta manifest protects the eMuleBB client seam', () => {
 test('fork delta manifest protects package-local runtime and Node policy', () => {
   const manifest = readManifest();
   const config = read('server/modules/config.js');
-  const installer = read(manifest.runtimePolicy.windowsInstaller);
   const serverPackage = JSON.parse(read('server/package.json'));
 
   assert.equal(manifest.runtimePolicy.minimumNodeMajor, 24);
   assert.equal(manifest.runtimePolicy.portableDataEnvironmentVariable, 'AMUTORRENT_DATA_DIR');
+  assert.equal(manifest.runtimePolicy.runnerOwner, 'emulebb suite installer');
   assert.match(config, /AMUTORRENT_DATA_DIR/);
-  assert.match(installer, /\$MinimumNodeMajor = 24/);
-  assert.match(installer, /\$env:AMUTORRENT_DATA_DIR = \$DataRoot/);
-  assert.match(installer, /PackageRoot -match "\\s"/);
   assert.equal(serverPackage.dependencies['better-sqlite3'], '^12.10.0');
 });
 
@@ -86,4 +85,14 @@ test('fork delta manifest records rebase acceptance commands', () => {
   assert.match(workflow, /npm run test:emulebb/);
   assert.match(acceptance, /Critical fork-owned paths exist/);
   assert.match(acceptance, /qBittorrent compatibility APIs do not proxy through eMuleBB/);
+});
+
+test('package workflow uses current emulebb workspace names', () => {
+  const workflow = read('.github/workflows/package-amutorrent.yml');
+
+  assert.match(workflow, /"name": "emulebb"/);
+  assert.match(workflow, /"path": "\.\.\\\\\.\.\\\\repos\\\\emulebb"/);
+  assert.match(workflow, /"path": "app\\\\emulebb-main"/);
+  assert.doesNotMatch(workflow, /repos\\\\eMule/);
+  assert.doesNotMatch(workflow, /app\\\\eMule-main/);
 });

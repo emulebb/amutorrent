@@ -62,29 +62,23 @@ Open `http://localhost:4000` and follow the setup wizard to configure your downl
 
 ### Prerequisites
 
-- Node.js 24 or later for the Windows package runner
+- Node.js 24 or later
 - npm
 
 ### Windows package runner
 
-The native Windows setup runner lives in `installer/windows/amutorrent.ps1`.
-It prefers Node 24 or newer from `PATH`, otherwise downloads the pinned Node 24
-runtime into the package-local `runtime/node` directory. Runtime data stays in
-the package-local `data`, `logs`, and `runtime` directories.
+The eMuleBB release package owns the native Windows suite installer and start
+scripts. aMuTorrent no longer ships its own `installer/windows/amutorrent.ps1`;
+it remains a portable controller runtime that is launched with
+`AMUTORRENT_DATA_DIR` pointing at package-local state.
 
-Run it from a package or checkout path without spaces:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\windows\amutorrent.ps1 Doctor
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\windows\amutorrent.ps1 Start
-```
-
-Persistent mode uses PM2. Install it explicitly into the package-local runtime
-before starting persistent mode:
+For standalone development from a checkout, set `AMUTORRENT_DATA_DIR` yourself
+before launching the server:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\windows\amutorrent.ps1 Install-Pm2
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\windows\amutorrent.ps1 StartPersistent
+$env:AMUTORRENT_DATA_DIR = "$PWD\data"
+$env:PORT = "4000"
+node .\server\server.js
 ```
 
 ### Steps

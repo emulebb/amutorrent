@@ -6,6 +6,10 @@ const test = require('node:test');
 const { assembleUnifiedItems } = require('../server/lib/unifiedItemBuilder');
 const { EmulebbManager } = require('../server/modules/emulebbManager');
 
+function localTestHost() {
+  return process.env.X_LOCAL_IP || '127.0.0.1';
+}
+
 async function withMockEmulebb(handler, run) {
   const requests = [];
   const server = http.createServer(async (req, res) => {
@@ -26,21 +30,22 @@ async function withMockEmulebb(handler, run) {
     });
   });
 
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
   try {
     const { port } = server.address();
-    return await run({ port, requests });
+    return await run({ host, port, requests });
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
 }
 
-function createManager(port) {
+function createManager(port, host = localTestHost()) {
   const manager = new EmulebbManager();
   manager.instanceId = 'emulebb-test';
   manager.setClientConfig({
     enabled: true,
-    host: '127.0.0.1',
+    host,
     port,
     apiKey: 'test-key'
   });

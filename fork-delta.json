@@ -3,7 +3,9 @@
   "upstream": {
     "remote": "upstream",
     "branch": "main",
-    "url": "https://github.com/got3nks/amutorrent.git"
+    "url": "https://github.com/got3nks/amutorrent.git",
+    "baseCommit": "24b13e440d39c3c4dc9ed4516d59e304ec1e61f0",
+    "baseVersion": "3.8.5"
   },
   "goals": [
     "Keep eMuleBB support as a first-class fork feature.",
@@ -13,7 +15,7 @@
   "runtimePolicy": {
     "minimumNodeMajor": 24,
     "portableDataEnvironmentVariable": "AMUTORRENT_DATA_DIR",
-    "windowsInstaller": "installer/windows/amutorrent.ps1"
+    "runnerOwner": "emulebb suite installer"
   },
   "buildTooling": {
     "tailwindCssWrapper": "scripts/build-css.cjs",
@@ -24,11 +26,6 @@
       "path": "server/modules/emulebbManager.js",
       "reason": "eMuleBB REST client manager and ED2K adapter",
       "guards": ["tests/emulebbManager.test.js"]
-    },
-    {
-      "path": "installer/windows/amutorrent.ps1",
-      "reason": "Windows portable package setup and runtime launcher",
-      "guards": ["tests/windowsInstaller.test.js"]
     },
     {
       "path": "tests/emulebbManager.test.js",
@@ -94,6 +91,6 @@
     "eMuleBB remains registered as an ED2K client type.",
     "eMuleBB setup configuration remains addressable from environment and UI metadata.",
     "qBittorrent compatibility APIs do not proxy through eMuleBB.",
-    "Windows package runner keeps data package-local and supports Node 24 or newer."
+    "aMuTorrent runtime stays package-local when launched with AMUTORRENT_DATA_DIR."
   ]
 }
