@@ -425,6 +425,7 @@ class EmulebbManager extends BaseClientManager {
     const maps = buildCategoryMaps(this._categories);
     this._categoryById = maps.byId;
     this._categoryByName = maps.byName;
+    this._requestQueue = Promise.resolve();
   }
 
   _baseUrl() {
@@ -436,8 +437,35 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async _request(method, path, body = null) {
-    this._ensureLifecycleAllowsMutation(method);
+    return this._enqueueRequest(() => this._requestWithRetry(method, path, body));
+  }
+
+  /**
+   * Serialize native eMuleBB REST calls for this manager instance.
+   *
+   * eMuleBB intentionally accepts one web client thread today because request
+   * handling still shares CWebServer state. aMuTorrent can issue overlapping
+   * UI, category, search, and detail-hydration calls, so the adapter queues
+   * requests here instead of forcing every caller to know that server limit.
+   */
+  async _enqueueRequest(run) {
+    const previous = this._requestQueue;
+    let release;
+    this._requestQueue = new Promise(resolve => {
+      release = resolve;
+    });
+
+    await previous.catch(() => {});
+    try {
+      return await run();
+    } finally {
+      release();
+    }
+  }
+
+  async _requestWithRetry(method, path, body = null) {
     const normalizedMethod = String(method || '').toUpperCase();
+    this._ensureLifecycleAllowsMutation(normalizedMethod);
     const maxAttempts = normalizedMethod === 'GET' ? SAFE_GET_RETRY_ATTEMPTS : 1;
 
     let lastError = null;
