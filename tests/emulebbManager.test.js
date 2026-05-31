@@ -317,6 +317,34 @@ test('eMuleBB manager unwraps native v1 success and error envelopes', async () =
   });
 });
 
+test('eMuleBB manager retries transient safe GET transport resets', async () => {
+  const requests = [];
+  let first = true;
+  const server = http.createServer((req, res) => {
+    requests.push({ method: req.method, url: req.url });
+    if (first) {
+      first = false;
+      req.socket.destroy();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ data: { version: '0.7.3' }, meta: { apiVersion: 'v1' } }));
+  });
+
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
+  try {
+    const { port } = server.address();
+    const manager = createManager(port);
+    const result = await manager._request('GET', '/api/v1/app');
+
+    assert.deepEqual(result, { version: '0.7.3' });
+    assert.equal(requests.length, 2);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('eMuleBB manager hydrates transfer sources from REST', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
