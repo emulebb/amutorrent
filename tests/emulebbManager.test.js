@@ -345,6 +345,46 @@ test('eMuleBB manager retries transient safe GET transport resets', async () => 
   }
 });
 
+test('eMuleBB manager serializes native REST requests for single accepted-client server', async () => {
+  const requests = [];
+  let active = 0;
+  let maxActive = 0;
+  const server = http.createServer(async (req, res) => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    requests.push(req.url);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 25));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ data: { path: req.url } }));
+    } finally {
+      active -= 1;
+    }
+  });
+
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
+  try {
+    const { port } = server.address();
+    const manager = createManager(port);
+    const results = await Promise.all([
+      manager._request('GET', '/api/v1/app'),
+      manager._request('GET', '/api/v1/status'),
+      manager._request('GET', '/api/v1/categories')
+    ]);
+
+    assert.deepEqual(results, [
+      { path: '/api/v1/app' },
+      { path: '/api/v1/status' },
+      { path: '/api/v1/categories' }
+    ]);
+    assert.deepEqual(requests, ['/api/v1/app', '/api/v1/status', '/api/v1/categories']);
+    assert.equal(maxActive, 1);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('eMuleBB manager hydrates transfer sources from REST', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
