@@ -643,7 +643,7 @@ test('eMuleBB manager assigns categories by existing name and handles delete sha
       return { body: { ok: true } };
     }
     if (method === 'DELETE' && url === '/api/v1/transfers/hash1') {
-      assert.deepEqual(body, { deleteFiles: true });
+      assert.equal(body, null);
       return { body: { ok: true } };
     }
     if (method === 'DELETE' && url === '/api/v1/transfers/hash2') {
@@ -668,7 +668,11 @@ test('eMuleBB manager assigns categories by existing name and handles delete sha
       return { body: { hash: 'hash8' } };
     }
     if (method === 'DELETE' && url === '/api/v1/transfers/hash9') {
-      assert.deepEqual(body, { deleteFiles: true });
+      assert.equal(body, null);
+      return { body: { ok: true } };
+    }
+    if (method === 'DELETE' && url === '/api/v1/transfers/hash10/files?confirm=true') {
+      assert.equal(body, null);
       return { body: { ok: true } };
     }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
@@ -687,6 +691,7 @@ test('eMuleBB manager assigns categories by existing name and handles delete sha
     assert.deepEqual(await manager.deleteItem('hash7'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash8'), { success: true, pathsToDelete: [] });
     assert.deepEqual(await manager.deleteItem('hash9', { deleteFiles: false }), { success: true, pathsToDelete: [] });
+    assert.deepEqual(await manager.deleteItem('hash10', { deleteFiles: true }), { success: true, pathsToDelete: [] });
   });
 });
 
@@ -774,7 +779,11 @@ test('eMuleBB manager uses final operation routes for common controls', async ()
       return { body: { ok: true } };
     }
     if (method === 'DELETE' && url === '/api/v1/shared-files/fedcbafedcbafedcbafedcbafedcbafe') {
-      assert.deepEqual(body, { deleteFiles: false });
+      assert.equal(body, null);
+      return { body: { ok: true } };
+    }
+    if (method === 'DELETE' && url === '/api/v1/shared-files/deletefiledeletefiledeletefilede/file?confirm=true') {
+      assert.equal(body, null);
       return { body: { ok: true } };
     }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
@@ -788,6 +797,10 @@ test('eMuleBB manager uses final operation routes for common controls', async ()
     assert.equal(await manager.refreshSharedFiles(), true);
     assert.deepEqual(
       await manager.deleteItem('fedcbafedcbafedcbafedcbafedcbafe', { isShared: true, deleteFiles: false }),
+      { success: true, pathsToDelete: [] }
+    );
+    assert.deepEqual(
+      await manager.deleteItem('deletefiledeletefiledeletefilede', { isShared: true, deleteFiles: true }),
       { success: true, pathsToDelete: [] }
     );
   });

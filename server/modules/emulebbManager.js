@@ -749,16 +749,14 @@ class EmulebbManager extends BaseClientManager {
 
   async deleteItem(hash, { deleteFiles, isShared } = {}) {
     if (isShared) {
-      const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}`, {
-        deleteFiles: deleteFiles === true
-      });
+      const suffix = deleteFiles === true ? '/file?confirm=true' : '';
+      const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}${suffix}`);
       if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) return { success: true, pathsToDelete: [] };
       return { success: false, error: operationErrorMessage(payload, 'eMuleBB rejected the shared-file delete request') };
     }
 
-    const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}`, {
-      deleteFiles: true
-    });
+    const suffix = deleteFiles === true ? '/files?confirm=true' : '';
+    const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}${suffix}`);
     if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
