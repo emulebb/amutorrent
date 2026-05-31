@@ -23,6 +23,23 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const SAFE_GET_RETRY_ATTEMPTS = 4;
+const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
+const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
+  'ECONNRESET',
+  'ECONNABORTED',
+  'EPIPE',
+  'ETIMEDOUT',
+  'socket hang up',
+  'request timed out',
+  'connection reset'
+];
+
+function isRetryableTransportError(err) {
+  const message = String(err?.message || err || '');
+  return RETRYABLE_TRANSPORT_ERROR_FRAGMENTS.some(fragment => message.includes(fragment));
+}
+
 function normalizeComparablePath(rawPath) {
   return String(rawPath || '').trim().replace(/[\\/]+$/g, '').toLowerCase();
 }
@@ -420,6 +437,23 @@ class EmulebbManager extends BaseClientManager {
 
   async _request(method, path, body = null) {
     this._ensureLifecycleAllowsMutation(method);
+    const normalizedMethod = String(method || '').toUpperCase();
+    const maxAttempts = normalizedMethod === 'GET' ? SAFE_GET_RETRY_ATTEMPTS : 1;
+
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await this._requestOnce(method, path, body);
+      } catch (err) {
+        lastError = err;
+        if (attempt >= maxAttempts || !isRetryableTransportError(err)) throw err;
+        await delay(SAFE_GET_RETRY_BASE_DELAY_MS * attempt);
+      }
+    }
+    throw lastError;
+  }
+
+  async _requestOnce(method, path, body = null) {
     const cfg = this._clientConfig || {};
     const url = new URL(`${this._baseUrl()}${path}`);
     const transport = url.protocol === 'https:' ? https : http;
