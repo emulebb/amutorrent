@@ -27,8 +27,11 @@ test('nightly upstream workflow gates main updates on the package build', () => 
 
   assert.match(workflow, /needs:\s*\n\s*- prepare\s*\n\s*- build\s*\n\s*if: needs\.prepare\.outputs\.changed == 'true'\s*\n\s*runs-on: ubuntu-24\.04\s*\n\s*steps:\s*\n\s*- uses: actions\/checkout@v6[\s\S]*Update main after green build/);
   assert.match(workflow, /--force-with-lease="refs\/heads\/main:\$\{\{ needs\.prepare\.outputs\.origin_main_sha \}\}"/);
+  assert.match(workflow, /uses: emulebb\/emulebb-build\/\.github\/workflows\/reusable-workspace-command\.yml@main/);
   assert.match(workflow, /python -m emule_workspace package-amutorrent/);
-  assert.match(workflow, /--release-version \$env:PACKAGE_VERSION/);
+  assert.match(workflow, /--release-version \$packageVersion/);
+  assert.doesNotMatch(workflow, /Create CI workspace manifest/);
+  assert.doesNotMatch(workflow, /Set-Content[\s\S]*deps\.json/);
 });
 
 test('nightly upstream workflow publishes one retained prerelease stream', () => {

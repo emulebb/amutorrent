@@ -11,106 +11,19 @@ permissions:
 jobs:
   package:
     name: package x64
-    runs-on: windows-2025-vs2026
-
-    steps:
-      - name: Checkout aMuTorrent
-        uses: actions/checkout@v6
-        with:
-          path: repos/amutorrent
-
-      - name: Checkout emulebb-build
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-build
-          ref: main
-          path: repos/emulebb-build
-
-      - name: Checkout emulebb-build-tests
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-build-tests
-          ref: main
-          path: repos/emulebb-build-tests
-
-      - name: Checkout emulebb-tooling
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-tooling
-          ref: main
-          path: repos/emulebb-tooling
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: |
-            repos/amutorrent/package-lock.json
-            repos/amutorrent/server/package-lock.json
-
-      - name: Install workspace package dependencies
-        run: python -m pip install click "pydantic>=2.0"
-
-      - name: Create CI workspace manifest
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path workspaces/workspace | Out-Null
-          @'
-          {
-            "schema_version": 2,
-            "emule_workspace_root": "..\\..",
-            "workspace": {
-              "name": "workspace",
-              "app_repo": {
-                "seed_repo": {
-                  "name": "emulebb",
-                  "path": "..\\..\\repos\\emulebb",
-                  "branch": "main"
-                },
-                "variants": [
-                  {
-                    "name": "main",
-                    "path": "app\\emulebb-main",
-                    "branch": "main"
-                  },
-                  {
-                    "name": "community",
-                    "path": "app\\emulebb-community-baseline",
-                    "branch": "baseline/community-0.72a"
-                  },
-                  {
-                    "name": "tracing-harness",
-                    "path": "app\\emulebb-community-tracing-harness",
-                    "branch": "tracing-harness/community-0.72a"
-                  }
-                ]
-              },
-              "repos": {
-                "build": "..\\..\\repos\\emulebb-build",
-                "tests": "..\\..\\repos\\emulebb-build-tests",
-                "tooling": "..\\..\\repos\\emulebb-tooling",
-                "amutorrent": "..\\..\\repos\\amutorrent",
-                "pages": "..\\..\\repos\\emulebb-pages",
-                "org_profile": "..\\..\\repos\\emulebb-org-profile",
-                "third_party": "..\\..\\repos\\third_party"
-              }
-            }
-          }
-          '@ | Set-Content -Encoding utf8 -NoNewline workspaces/workspace/deps.json
-
-      - name: Build package
-        env:
-          PYTHONPATH: ${{ github.workspace }}\repos\emulebb-build
-        run: >
-          python -m emule_workspace package-amutorrent
-          --workspace-root .
-          --config Release
-          --platform x64
-          --release-version 0.7.3
+    uses: emulebb/emulebb-build/.github/workflows/reusable-workspace-command.yml@main
+    with:
+      amutorrent_repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+      amutorrent_ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      node_version: '24'
+      node_cache_dependency_path: |
+        repos/amutorrent/package-lock.json
+        repos/amutorrent/server/package-lock.json
+      timeout_minutes: 180
+      command: |
+          python -m emule_workspace package-amutorrent `
+          --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
+          --config Release `
+          --platform x64 `
+          --release-version 0.7.3 `
           --clean
