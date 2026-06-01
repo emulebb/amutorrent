@@ -102,134 +102,32 @@ jobs:
     name: Build Windows package
     needs: prepare
     if: needs.prepare.outputs.changed == 'true'
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 180
-    steps:
-      - name: Checkout aMuTorrent
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.prepare.outputs.build_ref }}
-          path: repos/amutorrent
-
-      - name: Checkout emulebb-build
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-build
-          ref: main
-          path: repos/emulebb-build
-
-      - name: Checkout emulebb-build-tests
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-build-tests
-          ref: main
-          path: repos/emulebb-build-tests
-
-      - name: Checkout emulebb-tooling
-        uses: actions/checkout@v6
-        with:
-          repository: emulebb/emulebb-tooling
-          ref: main
-          path: repos/emulebb-tooling
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: |
-            repos/amutorrent/package-lock.json
-            repos/amutorrent/server/package-lock.json
-
-      - name: Install workspace package dependencies
-        run: python -m pip install click "pydantic>=2.0"
-
-      - name: Create CI workspace manifest
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          New-Item -ItemType Directory -Force -Path workspaces/workspace | Out-Null
-          @'
-          {
-            "schema_version": 2,
-            "emule_workspace_root": "..\\..",
-            "workspace": {
-              "name": "workspace",
-              "app_repo": {
-                "seed_repo": {
-                  "name": "emulebb",
-                  "path": "..\\..\\repos\\emulebb",
-                  "branch": "main"
-                },
-                "variants": [
-                  {
-                    "name": "main",
-                    "path": "app\\emulebb-main",
-                    "branch": "main"
-                  },
-                  {
-                    "name": "community",
-                    "path": "app\\emulebb-community-baseline",
-                    "branch": "baseline/community-0.72a"
-                  },
-                  {
-                    "name": "tracing-harness",
-                    "path": "app\\emulebb-community-tracing-harness",
-                    "branch": "tracing-harness/community-0.72a"
-                  }
-                ]
-              },
-              "repos": {
-                "build": "..\\..\\repos\\emulebb-build",
-                "tests": "..\\..\\repos\\emulebb-build-tests",
-                "tooling": "..\\..\\repos\\emulebb-tooling",
-                "amutorrent": "..\\..\\repos\\amutorrent",
-                "pages": "..\\..\\repos\\emulebb-pages",
-                "org_profile": "..\\..\\repos\\emulebb-org-profile",
-                "third_party": "..\\..\\repos\\third_party"
-              }
-            }
-          }
-          '@ | Set-Content -Encoding utf8 -NoNewline workspaces/workspace/deps.json
-
-      - name: Build package
-        env:
-          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
-          PYTHONPATH: ${{ github.workspace }}\repos\emulebb-build
-        run: >
-          python -m emule_workspace package-amutorrent
-          --workspace-root .
-          --config Release
-          --platform x64
-          --release-version $env:PACKAGE_VERSION
+    uses: emulebb/emulebb-build/.github/workflows/reusable-workspace-command.yml@main
+    with:
+      amutorrent_ref: ${{ needs.prepare.outputs.build_ref }}
+      node_version: '24'
+      node_cache_dependency_path: |
+        repos/amutorrent/package-lock.json
+        repos/amutorrent/server/package-lock.json
+      timeout_minutes: 180
+      artifact_name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
+      artifact_path: nightly-artifacts/*
+      command: |
+          $packageVersion = "${{ needs.prepare.outputs.package_version }}"
+          python -m emule_workspace package-amutorrent `
+          --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
+          --config Release `
+          --platform x64 `
+          --release-version $packageVersion `
           --clean
 
-      - name: Stage package assets
-        env:
-          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $releaseRoot = Join-Path $env:GITHUB_WORKSPACE "workspaces\workspace\state\release\emulebb-v$env:PACKAGE_VERSION"
+          $releaseRoot = Join-Path $env:EMULEBB_WORKSPACE_ROOT "workspaces\workspace\state\release\emulebb-v$packageVersion"
           $artifactRoot = Join-Path $env:GITHUB_WORKSPACE "nightly-artifacts"
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
-          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.zip") -Destination $artifactRoot
-          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.manifest.json") -Destination $artifactRoot
-          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$env:PACKAGE_VERSION-amutorrent-x64.sbom.spdx.json") -Destination $artifactRoot
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$packageVersion-amutorrent-x64.zip") -Destination $artifactRoot
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$packageVersion-amutorrent-x64.manifest.json") -Destination $artifactRoot
+          Copy-Item -Path (Join-Path $releaseRoot "emulebb-$packageVersion-amutorrent-x64.sbom.spdx.json") -Destination $artifactRoot
           Get-ChildItem $artifactRoot
-
-      - name: Upload package assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
-          path: nightly-artifacts/*
-          if-no-files-found: error
-          retention-days: 14
 
   publish-main:
     name: Publish rebased main

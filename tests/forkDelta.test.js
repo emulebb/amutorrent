@@ -87,12 +87,14 @@ test('fork delta manifest records rebase acceptance commands', () => {
   assert.match(acceptance, /qBittorrent compatibility APIs do not proxy through eMuleBB/);
 });
 
-test('package workflow uses current emulebb workspace names', () => {
+test('package workflow delegates current workspace materialization', () => {
   const workflow = read('.github/workflows/package-amutorrent.yml');
 
-  assert.match(workflow, /"name": "emulebb"/);
-  assert.match(workflow, /"path": "\.\.\\\\\.\.\\\\repos\\\\emulebb"/);
-  assert.match(workflow, /"path": "app\\\\emulebb-main"/);
+  assert.match(workflow, /uses: emulebb\/emulebb-build\/\.github\/workflows\/reusable-workspace-command\.yml@main/);
+  assert.match(workflow, /python -m emule_workspace package-amutorrent/);
+  assert.match(workflow, /--workspace-root \$env:EMULEBB_WORKSPACE_ROOT/);
+  assert.doesNotMatch(workflow, /Create CI workspace manifest/);
+  assert.doesNotMatch(workflow, /Set-Content[\s\S]*deps\.json/);
   assert.doesNotMatch(workflow, /repos\\\\eMule/);
   assert.doesNotMatch(workflow, /app\\\\eMule-main/);
 });
