@@ -6,7 +6,7 @@ on:
 
 jobs:
   baseline:
-    uses: emulebb/emulebb-tooling/.github/workflows/reusable-baseline.yml@ci/v8
+    uses: emulebb/emulebb-tooling/.github/workflows/reusable-baseline.yml@main
     with:
       policy_path: manifests/privacy-guard/policy.v1.json
       repo_kind: amutorrent
@@ -19,4 +19,4 @@ jobs:
         npm ci --prefix server --omit=dev
         npm run build
         npm run test:emulebb
-      tooling_ref: ci/v8
+      tooling_ref: main
