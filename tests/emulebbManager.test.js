@@ -791,6 +791,58 @@ test('eMuleBB manager accepts native transfer add operation envelopes', async ()
   });
 });
 
+test('eMuleBB manager recovers ED2K add after transient reset when transfer materializes', async () => {
+  const requests = [];
+  let resetPost = true;
+  const server = http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      requests.push({ method: req.method, url: req.url });
+      if (req.method === 'POST' && req.url === '/api/v1/transfers' && resetPost) {
+        resetPost = false;
+        req.socket.destroy();
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/v1/transfers?limit=100') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          data: {
+            items: [{
+              hash: 'fedcba98765432100123456789abcdef',
+              name: 'test.iso',
+              size: 1024
+            }]
+          },
+          meta: { apiVersion: 'v1' }
+        }));
+        return;
+      }
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'NOT_FOUND', message: 'missing' }));
+    });
+  });
+
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
+  try {
+    const { port } = server.address();
+    const manager = createManager(port, host);
+    manager.client = { version: {} };
+
+    assert.equal(
+      await manager.addEd2kLink('ed2k://|file|test.iso|1024|fedcba98765432100123456789abcdef|/'),
+      true
+    );
+    assert.deepEqual(requests, [
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' }
+    ]);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('eMuleBB manager creates, edits, and deletes categories through REST', async () => {
   const categories = [{ id: 0, name: 'Default' }];
   await withMockEmulebb(({ method, url, body }) => {

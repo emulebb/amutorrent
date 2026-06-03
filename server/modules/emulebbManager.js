@@ -123,6 +123,11 @@ function firstOperationItem(payload) {
   return payload?.items?.[0] ?? payload?.results?.[0] ?? payload;
 }
 
+function hashMatches(file, hash) {
+  const candidate = String(file?.hash || file?.fileHash || '').toLowerCase();
+  return Boolean(hash) && candidate === String(hash).toLowerCase();
+}
+
 function normalizeErrorPayload(payload, statusCode, text) {
   if (payload?.error && typeof payload.error === 'object') {
     return {
@@ -799,20 +804,41 @@ class EmulebbManager extends BaseClientManager {
   async stop(hash) { return await this._transferAction(hash, 'stop'); }
 
   async addEd2kLink(link, categoryId = 0, username = null) {
-    const payload = await this._request('POST', '/api/v1/transfers', { link });
+    const parsed = parseEd2kLink(link);
+    let payload;
+    try {
+      payload = await this._request('POST', '/api/v1/transfers', { link });
+    } catch (err) {
+      if (!parsed.hash || !isRetryableTransportError(err)) throw err;
+      await delay(SAFE_GET_RETRY_BASE_DELAY_MS);
+      const existing = await this._findTransferByHash(parsed.hash);
+      if (existing) {
+        await this._finishAddedEd2kTransfer(parsed.hash, existing, parsed, categoryId, username);
+        return true;
+      }
+      payload = await this._request('POST', '/api/v1/transfers', { link });
+    }
     const result = firstOperationItem(payload);
     const hash = result?.hash || result?.fileHash;
     if (hash && isOperationSuccess(payload, { expectedHash: hash })) {
-      const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
-      if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
-        await this.setCategoryOrLabel(hash, { categoryId: numericCategoryId });
-      }
-      const parsed = parseEd2kLink(link);
-      const categoryName = this._categoryById.get(numericCategoryId)?.name || 'Default';
-      this.trackDownload(hash, parsed.filename || result.name || 'Unknown', parsed.size || null, username, categoryName);
+      await this._finishAddedEd2kTransfer(hash, result, parsed, categoryId, username);
       return true;
     }
     return false;
+  }
+
+  async _findTransferByHash(hash) {
+    const payload = await this._request('GET', '/api/v1/transfers?limit=100');
+    return unwrapItems(payload).find(file => hashMatches(file, hash)) || null;
+  }
+
+  async _finishAddedEd2kTransfer(hash, result, parsed, categoryId, username) {
+    const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
+    if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
+      await this.setCategoryOrLabel(hash, { categoryId: numericCategoryId });
+    }
+    const categoryName = this._categoryById.get(numericCategoryId)?.name || 'Default';
+    this.trackDownload(hash, parsed.filename || result?.name || 'Unknown', parsed.size || result?.size || null, username, categoryName);
   }
 
   async deleteItem(hash, { deleteFiles, isShared } = {}) {
