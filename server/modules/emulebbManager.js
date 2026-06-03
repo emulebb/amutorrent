@@ -23,7 +23,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const SAFE_GET_RETRY_ATTEMPTS = 4;
+const SAFE_GET_RETRY_ATTEMPTS = 8;
 const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
 const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
   'ECONNRESET',

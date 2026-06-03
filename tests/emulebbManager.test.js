@@ -845,7 +845,7 @@ test('eMuleBB manager recovers ED2K add after transient reset when transfer mate
 
 test('eMuleBB manager keeps retrying ED2K add when transient resets repeat before materialization', async () => {
   const requests = [];
-  let resetPosts = 2;
+  let resetPosts = 5;
   const server = http.createServer((req, res) => {
     req.resume();
     req.on('end', () => {
@@ -887,6 +887,12 @@ test('eMuleBB manager keeps retrying ED2K add when transient resets repeat befor
       true
     );
     assert.deepEqual(requests, [
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' },
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' },
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' },
       { method: 'POST', url: '/api/v1/transfers' },
       { method: 'GET', url: '/api/v1/transfers?limit=100' },
       { method: 'POST', url: '/api/v1/transfers' },
