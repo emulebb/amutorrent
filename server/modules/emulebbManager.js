@@ -876,6 +876,16 @@ class EmulebbManager extends BaseClientManager {
     return await this._refreshCategories();
   }
 
+  async onConnectSync(categoryManager) {
+    const categories = await this.getCategories();
+    if (!categories) return;
+
+    const defaultCategory = categories.find(category => Number(category.id) === 0);
+    if (defaultCategory?.path) {
+      categoryManager.setClientDefaultPath(this.instanceId, defaultCategory.path);
+    }
+  }
+
   async createCategory({ name, path = '', comment = '', color = null, priority = 0 } = {}) {
     if (!this.client) throw new Error('eMuleBB not connected');
     const payload = {

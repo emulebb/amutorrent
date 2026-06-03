@@ -802,6 +802,26 @@ test('eMuleBB manager creates, edits, and deletes categories through REST', asyn
   });
 });
 
+test('eMuleBB manager publishes default category path on connect sync', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default', path: 'Z:\\Downloads\\Incoming' }] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    const observed = [];
+    manager.client = { version: {} };
+    await manager.onConnectSync({
+      setClientDefaultPath(instanceId, defaultPath) {
+        observed.push({ instanceId, defaultPath });
+      }
+    });
+
+    assert.deepEqual(observed, [{ instanceId: 'emulebb-test', defaultPath: 'Z:\\Downloads\\Incoming' }]);
+  });
+});
+
 test('eMuleBB manager downloads native search results with selected category', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
