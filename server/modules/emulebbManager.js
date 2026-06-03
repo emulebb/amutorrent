@@ -859,19 +859,21 @@ class EmulebbManager extends BaseClientManager {
     }
 
     let payload;
-    try {
-      payload = await this._deleteTransferByHash(hash, deleteFiles);
-    } catch (err) {
-      if (!isRetryableTransportError(err)) throw err;
-      // WHY: eMuleBB may reset the REST socket around shutdown/restart windows.
-      // Reconcile before retrying so a completed delete is not surfaced as a stuck UI item.
-      await delay(SAFE_GET_RETRY_BASE_DELAY_MS);
-      const existing = await this._findTransferByHash(hash);
-      if (!existing) {
-        this.trackDeletion(hash);
-        return { success: true, pathsToDelete: [] };
+    for (let attempt = 1; attempt <= SAFE_GET_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        payload = await this._deleteTransferByHash(hash, deleteFiles);
+        break;
+      } catch (err) {
+        if (!isRetryableTransportError(err) || attempt >= SAFE_GET_RETRY_ATTEMPTS) throw err;
+        // WHY: eMuleBB may reset the REST socket around shutdown/restart windows.
+        // Reconcile before retrying so a completed delete is not surfaced as a stuck UI item.
+        await delay(SAFE_GET_RETRY_BASE_DELAY_MS * attempt);
+        const existing = await this._findTransferByHash(hash);
+        if (!existing) {
+          this.trackDeletion(hash);
+          return { success: true, pathsToDelete: [] };
+        }
       }
-      payload = await this._deleteTransferByHash(hash, deleteFiles);
     }
     if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);
