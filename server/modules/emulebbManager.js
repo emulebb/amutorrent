@@ -806,17 +806,21 @@ class EmulebbManager extends BaseClientManager {
   async addEd2kLink(link, categoryId = 0, username = null) {
     const parsed = parseEd2kLink(link);
     let payload;
-    try {
-      payload = await this._request('POST', '/api/v1/transfers', { link });
-    } catch (err) {
-      if (!parsed.hash || !isRetryableTransportError(err)) throw err;
-      await delay(SAFE_GET_RETRY_BASE_DELAY_MS);
-      const existing = await this._findTransferByHash(parsed.hash);
-      if (existing) {
-        await this._finishAddedEd2kTransfer(parsed.hash, existing, parsed, categoryId, username);
-        return true;
+    for (let attempt = 1; attempt <= SAFE_GET_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        payload = await this._request('POST', '/api/v1/transfers', { link });
+        break;
+      } catch (err) {
+        if (!parsed.hash || !isRetryableTransportError(err) || attempt >= SAFE_GET_RETRY_ATTEMPTS) throw err;
+        // WHY: Windows VM smoke runs can briefly reset the native REST socket while
+        // eMuleBB is accepting mutations; reconcile before another add to avoid duplicates.
+        await delay(SAFE_GET_RETRY_BASE_DELAY_MS * attempt);
+        const existing = await this._findTransferByHash(parsed.hash);
+        if (existing) {
+          await this._finishAddedEd2kTransfer(parsed.hash, existing, parsed, categoryId, username);
+          return true;
+        }
       }
-      payload = await this._request('POST', '/api/v1/transfers', { link });
     }
     const result = firstOperationItem(payload);
     const hash = result?.hash || result?.fileHash;

@@ -843,6 +843,61 @@ test('eMuleBB manager recovers ED2K add after transient reset when transfer mate
   }
 });
 
+test('eMuleBB manager keeps retrying ED2K add when transient resets repeat before materialization', async () => {
+  const requests = [];
+  let resetPosts = 2;
+  const server = http.createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      requests.push({ method: req.method, url: req.url });
+      if (req.method === 'POST' && req.url === '/api/v1/transfers' && resetPosts > 0) {
+        resetPosts -= 1;
+        req.socket.destroy();
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/v1/transfers?limit=100') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ data: { items: [] }, meta: { apiVersion: 'v1' } }));
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/api/v1/transfers') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          status: 'success',
+          hash: 'fedcba98765432100123456789abcdef',
+          name: 'test.iso',
+          size: 1024
+        }));
+        return;
+      }
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'NOT_FOUND', message: 'missing' }));
+    });
+  });
+
+  const host = localTestHost();
+  await new Promise(resolve => server.listen(0, host, resolve));
+  try {
+    const { port } = server.address();
+    const manager = createManager(port, host);
+    manager.client = { version: {} };
+
+    assert.equal(
+      await manager.addEd2kLink('ed2k://|file|test.iso|1024|fedcba98765432100123456789abcdef|/'),
+      true
+    );
+    assert.deepEqual(requests, [
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' },
+      { method: 'POST', url: '/api/v1/transfers' },
+      { method: 'GET', url: '/api/v1/transfers?limit=100' },
+      { method: 'POST', url: '/api/v1/transfers' }
+    ]);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 test('eMuleBB manager retries delete after transient reset when transfer remains', async () => {
   const requests = [];
   let resetDelete = true;
