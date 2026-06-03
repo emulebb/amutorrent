@@ -832,6 +832,11 @@ class EmulebbManager extends BaseClientManager {
     return unwrapItems(payload).find(file => hashMatches(file, hash)) || null;
   }
 
+  async _deleteTransferByHash(hash, deleteFiles) {
+    const suffix = deleteFiles === true ? '/files?confirm=true' : '';
+    return await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}${suffix}`);
+  }
+
   async _finishAddedEd2kTransfer(hash, result, parsed, categoryId, username) {
     const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
     if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
@@ -849,8 +854,21 @@ class EmulebbManager extends BaseClientManager {
       return { success: false, error: operationErrorMessage(payload, 'eMuleBB rejected the shared-file delete request') };
     }
 
-    const suffix = deleteFiles === true ? '/files?confirm=true' : '';
-    const payload = await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}${suffix}`);
+    let payload;
+    try {
+      payload = await this._deleteTransferByHash(hash, deleteFiles);
+    } catch (err) {
+      if (!isRetryableTransportError(err)) throw err;
+      // WHY: eMuleBB may reset the REST socket around shutdown/restart windows.
+      // Reconcile before retrying so a completed delete is not surfaced as a stuck UI item.
+      await delay(SAFE_GET_RETRY_BASE_DELAY_MS);
+      const existing = await this._findTransferByHash(hash);
+      if (!existing) {
+        this.trackDeletion(hash);
+        return { success: true, pathsToDelete: [] };
+      }
+      payload = await this._deleteTransferByHash(hash, deleteFiles);
+    }
     if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);
       return { success: true, pathsToDelete: [] };
