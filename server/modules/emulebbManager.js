@@ -119,6 +119,10 @@ function operationErrorMessage(payload, fallback) {
   return first?.error || payload?.error || payload?.message || fallback;
 }
 
+function firstOperationItem(payload) {
+  return payload?.items?.[0] ?? payload?.results?.[0] ?? payload;
+}
+
 function normalizeErrorPayload(payload, statusCode, text) {
   if (payload?.error && typeof payload.error === 'object') {
     return {
@@ -795,15 +799,17 @@ class EmulebbManager extends BaseClientManager {
   async stop(hash) { return await this._transferAction(hash, 'stop'); }
 
   async addEd2kLink(link, categoryId = 0, username = null) {
-    const result = await this._request('POST', '/api/v1/transfers', { link });
-    if (result?.hash) {
+    const payload = await this._request('POST', '/api/v1/transfers', { link });
+    const result = firstOperationItem(payload);
+    const hash = result?.hash || result?.fileHash;
+    if (hash && isOperationSuccess(payload, { expectedHash: hash })) {
       const numericCategoryId = Number.isInteger(categoryId) ? categoryId : Number.parseInt(categoryId, 10);
       if (Number.isInteger(numericCategoryId) && numericCategoryId > 0) {
-        await this.setCategoryOrLabel(result.hash, { categoryId: numericCategoryId });
+        await this.setCategoryOrLabel(hash, { categoryId: numericCategoryId });
       }
       const parsed = parseEd2kLink(link);
       const categoryName = this._categoryById.get(numericCategoryId)?.name || 'Default';
-      this.trackDownload(result.hash, parsed.filename || result.name || 'Unknown', parsed.size || null, username, categoryName);
+      this.trackDownload(hash, parsed.filename || result.name || 'Unknown', parsed.size || null, username, categoryName);
       return true;
     }
     return false;

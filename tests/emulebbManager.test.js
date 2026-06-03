@@ -763,6 +763,34 @@ test('eMuleBB manager assigns categories by existing name and handles delete sha
   });
 });
 
+test('eMuleBB manager accepts native transfer add operation envelopes', async () => {
+  await withMockEmulebb(({ method, url, body }) => {
+    if (method === 'POST' && url === '/api/v1/transfers') {
+      assert.deepEqual(body, {
+        link: 'ed2k://|file|test.iso|1024|fedcba98765432100123456789abcdef|/'
+      });
+      return {
+        body: {
+          items: [{
+            ok: true,
+            hash: 'fedcba98765432100123456789abcdef',
+            name: 'test.iso'
+          }]
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    assert.equal(
+      await manager.addEd2kLink('ed2k://|file|test.iso|1024|fedcba98765432100123456789abcdef|/'),
+      true
+    );
+  });
+});
+
 test('eMuleBB manager creates, edits, and deletes categories through REST', async () => {
   const categories = [{ id: 0, name: 'Default' }];
   await withMockEmulebb(({ method, url, body }) => {
