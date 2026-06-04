@@ -39,6 +39,7 @@ test('nightly upstream workflow publishes one retained prerelease stream', () =>
 
   assert.match(workflow, /nightly_tag="amutorrent-nightly-\$\{release_date\}-\$\{short_upstream\}"/);
   assert.match(workflow, /package_version="\$\{AMUTORRENT_NIGHTLY_BASE_VERSION\}-nightly\.\$\{release_date\}\.\$\{short_upstream\}"/);
+  assert.match(workflow, /release:\s*\n\s*name: Publish nightly prerelease[\s\S]*steps:\s*\n\s*- uses: actions\/checkout@v6[\s\S]*ref: \$\{\{ needs\.prepare\.outputs\.build_ref \}\}[\s\S]*Download package assets/);
   assert.match(workflow, /gh release create "\$\{TAG\}"/);
   assert.match(workflow, /NIGHTLY_TAG_PREFIX: amutorrent-nightly-/);
   assert.match(workflow, /gh release delete "\$\{tag\}"[\s\S]*--cleanup-tag[\s\S]*--yes/);
