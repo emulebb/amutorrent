@@ -1062,20 +1062,71 @@ test('eMuleBB manager creates, edits, and deletes categories through REST', asyn
 test('eMuleBB manager publishes default category path on connect sync', async () => {
   await withMockEmulebb(({ method, url }) => {
     if (method === 'GET' && url === '/api/v1/categories') {
-      return { body: { items: [{ id: 0, name: 'Default', path: 'Z:\\Downloads\\Incoming' }] } };
+      return {
+        body: {
+          items: [
+            { id: 0, name: 'Default', path: 'Z:\\Downloads\\Incoming' },
+            { id: 2, name: 'emulebb-radarr', path: 'Z:\\Downloads\\radarr', comment: 'movies', priority: 1, color: 65280 },
+            { id: 3, name: 'emulebb-sonarr', path: 'Z:\\Downloads\\sonarr' }
+          ]
+        }
+      };
     }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port }) => {
     const manager = createManager(port);
     const observed = [];
+    const imported = [];
     manager.client = { version: {} };
     await manager.onConnectSync({
       setClientDefaultPath(instanceId, defaultPath) {
         observed.push({ instanceId, defaultPath });
+      },
+      getCategoriesSnapshot() {
+        return {
+          getByAmuleId: () => null,
+          getByName: () => null
+        };
+      },
+      importCategory(category) {
+        imported.push(category);
+      },
+      linkAmuleId() {},
+      async save() {
+        observed.push({ saved: true });
+      },
+      async propagateToOtherClients(instanceId) {
+        observed.push({ propagated: instanceId });
+      },
+      async validateAllPaths() {
+        observed.push({ validated: true });
       }
     });
 
-    assert.deepEqual(observed, [{ instanceId: 'emulebb-test', defaultPath: 'Z:\\Downloads\\Incoming' }]);
+    assert.deepEqual(observed, [
+      { instanceId: 'emulebb-test', defaultPath: 'Z:\\Downloads\\Incoming' },
+      { saved: true },
+      { propagated: 'emulebb-test' },
+      { validated: true }
+    ]);
+    assert.deepEqual(imported, [
+      {
+        name: 'emulebb-radarr',
+        color: '#00FF00',
+        path: 'Z:\\Downloads\\radarr',
+        comment: 'movies',
+        priority: 1,
+        amuleIds: { 'emulebb-test': 2 }
+      },
+      {
+        name: 'emulebb-sonarr',
+        color: undefined,
+        path: 'Z:\\Downloads\\sonarr',
+        comment: 'Imported from eMuleBB',
+        priority: 0,
+        amuleIds: { 'emulebb-test': 3 }
+      }
+    ]);
   });
 });
 

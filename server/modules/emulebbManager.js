@@ -940,6 +940,53 @@ class EmulebbManager extends BaseClientManager {
     if (defaultCategory?.path) {
       categoryManager.setClientDefaultPath(this.instanceId, defaultCategory.path);
     }
+
+    if (!categoryManager.getCategoriesSnapshot || !categoryManager.importCategory) return;
+
+    const { amuleColorToHex } = require('../lib/CategoryManager');
+    const snapshot = categoryManager.getCategoriesSnapshot();
+    let imported = 0, linked = 0;
+
+    for (const category of categories) {
+      const categoryId = Number(category.id);
+      if (!Number.isInteger(categoryId) || categoryId < 0) continue;
+
+      if (categoryId === 0) {
+        if (!snapshot.getByAmuleId?.(this.instanceId, 0)) {
+          categoryManager.linkAmuleId?.('Default', this.instanceId, 0);
+          linked++;
+        }
+        continue;
+      }
+
+      const name = category.name || category.title || `Category ${categoryId}`;
+      if (snapshot.getByAmuleId?.(this.instanceId, categoryId)) continue;
+
+      const existing = snapshot.getByName?.(name);
+      if (existing) {
+        if (existing.amuleIds?.[this.instanceId] == null) {
+          categoryManager.linkAmuleId?.(name, this.instanceId, categoryId);
+          linked++;
+        }
+        continue;
+      }
+
+      categoryManager.importCategory({
+        name,
+        color: category.color == null ? undefined : amuleColorToHex(category.color),
+        path: category.path || null,
+        comment: category.comment || 'Imported from eMuleBB',
+        priority: category.priority ?? 0,
+        amuleIds: { [this.instanceId]: categoryId }
+      });
+      imported++;
+    }
+
+    if (imported > 0 || linked > 0) await categoryManager.save?.();
+    this.log(`📊 eMuleBB sync complete: ${imported} imported, ${linked} linked`);
+
+    await categoryManager.propagateToOtherClients?.(this.instanceId);
+    await categoryManager.validateAllPaths?.();
   }
 
   async createCategory({ name, path = '', comment = '', color = null, priority = 0 } = {}) {
