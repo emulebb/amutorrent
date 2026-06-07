@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: "Release version, for example 0.7.3-rc.1 or 0.7.3"
+        description: "eMuleBB package version, for example 0.7.3-rc.1 or 0.7.3"
         required: true
         type: string
       target_sha:
@@ -35,9 +35,10 @@ jobs:
     name: Prepare release metadata
     runs-on: ubuntu-latest
     outputs:
+      amutorrent_version: ${{ steps.meta.outputs.amutorrent_version }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      package_version: ${{ steps.meta.outputs.package_version }}
       release_kind: ${{ steps.meta.outputs.release_kind }}
-      release_version: ${{ steps.meta.outputs.release_version }}
       tag_exists: ${{ steps.meta.outputs.tag_exists }}
       tag_name: ${{ steps.meta.outputs.tag_name }}
       target_sha: ${{ steps.meta.outputs.target_sha }}
@@ -51,14 +52,14 @@ jobs:
         id: meta
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.release_version }}
+          PACKAGE_VERSION: ${{ inputs.release_version }}
           TARGET_SHA: ${{ inputs.target_sha }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta)\.[0-9]+)?$ ]]; then
-            echo "Unsupported release version: ${RELEASE_VERSION}" >&2
+          if [[ ! "${PACKAGE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta)\.[0-9]+)?$ ]]; then
+            echo "Unsupported package version: ${PACKAGE_VERSION}" >&2
             exit 1
           fi
 
@@ -68,23 +69,55 @@ jobs:
           fi
 
           target_sha="${TARGET_SHA,,}"
-          tag_name="amutorrent-v${RELEASE_VERSION}"
           release_kind="stable"
           is_prerelease="false"
-          if [[ "${RELEASE_VERSION}" =~ -(rc|beta)\.[0-9]+$ ]]; then
+          if [[ "${PACKAGE_VERSION}" =~ -(rc|beta)\.[0-9]+$ ]]; then
             release_kind="prerelease"
             is_prerelease="true"
-          fi
-
-          if gh release view "${tag_name}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            echo "Release already exists: ${tag_name}" >&2
-            exit 1
           fi
 
           if ! git cat-file -e "${target_sha}^{commit}" 2>/dev/null; then
             git fetch origin "${target_sha}"
           fi
           git cat-file -e "${target_sha}^{commit}"
+
+          amutorrent_version="$(
+            TARGET_SHA="${target_sha}" python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          target = os.environ["TARGET_SHA"]
+
+          def read_version(path: str) -> str:
+              payload = subprocess.check_output(["git", "show", f"{target}:{path}"], text=True)
+              return json.loads(payload)["version"]
+
+          root_version = read_version("package.json")
+          server_version = read_version("server/package.json")
+          if root_version != server_version:
+              print(
+                  f"aMuTorrent version mismatch: package.json={root_version}, "
+                  f"server/package.json={server_version}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          print(root_version)
+          PY
+          )"
+
+          if [[ ! "${amutorrent_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z]+)*$ ]]; then
+            echo "Unsupported aMuTorrent version: ${amutorrent_version}" >&2
+            exit 1
+          fi
+
+          tag_name="amutorrent-v${amutorrent_version}-emulebb-v${PACKAGE_VERSION}"
+
+          if gh release view "${tag_name}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release already exists: ${tag_name}" >&2
+            exit 1
+          fi
 
           tag_exists="false"
           if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
@@ -103,9 +136,10 @@ jobs:
           fi
 
           {
+            echo "amutorrent_version=${amutorrent_version}"
             echo "is_prerelease=${is_prerelease}"
+            echo "package_version=${PACKAGE_VERSION}"
             echo "release_kind=${release_kind}"
-            echo "release_version=${RELEASE_VERSION}"
             echo "tag_exists=${tag_exists}"
             echo "tag_name=${tag_name}"
             echo "target_sha=${target_sha}"
@@ -124,12 +158,12 @@ jobs:
         repos/amutorrent/package-lock.json
         repos/amutorrent/server/package-lock.json
       timeout_minutes: 180
-      artifact_name: amutorrent-${{ needs.prepare.outputs.release_version }}-x64
+      artifact_name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
       artifact_path: release-artifacts/*
-      failure_artifact_name: amutorrent-release-build-logs-${{ needs.prepare.outputs.release_version }}
+      failure_artifact_name: amutorrent-release-build-logs-${{ needs.prepare.outputs.package_version }}
       failure_artifact_path: workspaces/workspace/state/build-logs/**
       command: |
-        $packageVersion = "${{ needs.prepare.outputs.release_version }}"
+        $packageVersion = "${{ needs.prepare.outputs.package_version }}"
 
         python -m emule_workspace package-amutorrent `
           --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
@@ -188,21 +222,23 @@ jobs:
         env:
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
           TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
-          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          AMUTORRENT_VERSION: ${{ needs.prepare.outputs.amutorrent_version }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "eMuleBB release automation"
           git config user.email "actions@users.noreply.github.com"
-          git tag -a "${TAG_NAME}" "${TARGET_SHA}" -m "aMuTorrent ${RELEASE_VERSION}"
+          git tag -a "${TAG_NAME}" "${TARGET_SHA}" -m "aMuTorrent ${AMUTORRENT_VERSION} for eMuleBB ${PACKAGE_VERSION}"
           git push origin "refs/tags/${TAG_NAME}"
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
+          AMUTORRENT_VERSION: ${{ needs.prepare.outputs.amutorrent_version }}
           IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
           RELEASE_KIND: ${{ needs.prepare.outputs.release_kind }}
-          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
           TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
         shell: bash
@@ -215,10 +251,11 @@ jobs:
           fi
 
           cat > notes.md <<EOF
-          aMuTorrent ${RELEASE_VERSION}
+          aMuTorrent ${AMUTORRENT_VERSION} for eMuleBB ${PACKAGE_VERSION}
 
           Release type: ${RELEASE_KIND}
           Target commit: ${TARGET_SHA}
+          eMuleBB package version: ${PACKAGE_VERSION}
 
           Assets were generated by GitHub Actions from the target commit.
           Release assets include the Windows controller package, manifest, SPDX SBOM, and GitHub artifact attestations.
@@ -231,7 +268,7 @@ jobs:
           release_args=(
             --repo "${GITHUB_REPOSITORY}"
             --target "${TARGET_SHA}"
-            --title "aMuTorrent ${RELEASE_VERSION}"
+            --title "aMuTorrent ${AMUTORRENT_VERSION} for eMuleBB ${PACKAGE_VERSION}"
             --notes-file notes.md
             --verify-tag
           )
