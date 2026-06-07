@@ -8,6 +8,21 @@ A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, an
 
 ![aMuTorrent](./docs/screenshots/home-desktop.png)
 
+## eMuleBB RC1 Suite Setup
+
+For eMuleBB RC1, the suite bootstrapper is the quickest way to install
+aMuTorrent with eMuleBB and the Arr integration workflow.
+
+```powershell
+irm https://github.com/emulebb/emulebb/releases/download/emulebb-v0.7.3-rc.1/Bootstrap-eMuleBBSuite.ps1 | iex
+```
+
+The bootstrapper resolves the matching
+[`amutorrent-v3.8.5-emulebb-v0.7.3-rc.1`](https://github.com/emulebb/amutorrent/releases/tag/amutorrent-v3.8.5-emulebb-v0.7.3-rc.1)
+package and wires it into the eMuleBB suite. All eMuleBB RC1 builds and
+packaging happen in GitHub Actions and are published through GitHub Releases
+with manifests, SHA-256 evidence, SPDX SBOMs, and diagnostics packages.
+
 ## Features
 
 ### Multi-Client Support
@@ -52,11 +67,10 @@ A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, an
 
 **Prerequisites:** At least one of: aMule with External Connections enabled, eMuleBB with REST enabled, rTorrent with XML-RPC enabled, qBittorrent with WebUI enabled, Deluge with WebUI enabled, or Transmission with RPC enabled.
 
-This repository is the eMuleBB organization fork. The Docker image and clone
-commands below are the upstream aMuTorrent distribution unless an eMuleBB
-release explicitly publishes fork-owned assets. Use this fork for eMuleBB
-integration issues and fork development; use upstream package/image references
-when you intentionally want the upstream distribution.
+This repository is the eMuleBB organization fork. The Docker image below remains
+the upstream aMuTorrent distribution. For the eMuleBB RC1 controller package,
+use the suite bootstrapper above or download the published RC1 asset from this
+fork's GitHub Releases.
 
 ### 1. Pull the image
 
