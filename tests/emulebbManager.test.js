@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const test = require('node:test');
+const clientMeta = require('../server/lib/clientMeta');
 const { assembleUnifiedItems } = require('../server/lib/unifiedItemBuilder');
 const { EmulebbManager } = require('../server/modules/emulebbManager');
 
@@ -81,7 +82,74 @@ test('eMuleBB manager initializes, caches categories, and normalizes transfers',
     assert.equal(data.downloads[0].category, 'Movies');
     assert.equal(data.downloads[0].categoryId, 2);
     assert.equal(data.downloads[0].progress, 33.33);
+    assert.equal(data.downloads[0].isComplete, false);
     assert.equal(data.downloads[0].renameSupported, true);
+  });
+});
+
+test('eMuleBB manager maps completion from native state instead of byte equality', async () => {
+  const statusMap = clientMeta.getStatusMap('emulebb');
+  assert.equal(statusMap.completed, 'completed');
+  assert.equal(statusMap.missingfiles, 'error');
+  assert.equal(Object.prototype.hasOwnProperty.call(statusMap, 'complete'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(statusMap, 'missing_files'), false);
+
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [
+            {
+              hash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+              name: 'still-hashing.bin',
+              sizeBytes: 100,
+              completedBytes: 100,
+              progress: 1,
+              state: 'downloading'
+            },
+            {
+              hash: 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+              name: 'done.bin',
+              sizeBytes: 100,
+              completedBytes: 100,
+              progress: 1,
+              state: 'completed'
+            },
+            {
+              hash: 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+              name: 'missing.bin',
+              sizeBytes: 100,
+              completedBytes: 25,
+              progress: 0.25,
+              state: 'missingfiles'
+            }
+          ],
+          sharedFiles: [],
+          uploads: []
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const data = await manager.fetchData();
+    const byHash = new Map(data.downloads.map(item => [item.hash, item]));
+    assert.equal(byHash.get('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa').isComplete, false);
+    assert.equal(byHash.get('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb').isComplete, true);
+
+    const unified = assembleUnifiedItems(data.downloads, data.sharedFiles, null);
+    const itemsByHash = new Map(unified.map(item => [item.hash, item]));
+    assert.equal(itemsByHash.get('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa').complete, false);
+    assert.equal(itemsByHash.get('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa').downloading, true);
+    assert.equal(itemsByHash.get('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb').complete, true);
+    assert.equal(itemsByHash.get('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb').downloading, false);
+    assert.equal(itemsByHash.get('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb').status, 'completed');
+    assert.equal(itemsByHash.get('cccccccccccccccccccccccccccccccc').status, 'error');
   });
 });
 
@@ -626,6 +694,7 @@ test('eMuleBB manager normalizes shared metadata and updates rating/comment', as
     assert.equal(data.sharedFiles[0].rating, 4);
     assert.equal(data.sharedFiles[0].hasComment, true);
     assert.equal(data.sharedFiles[0].renameSupported, false);
+    assert.equal(data.sharedFiles[0].isComplete, true);
     assert.equal(data.sharedFiles[0].progress, 100);
     assert.equal(data.sharedFiles[0].status, 'completed');
 

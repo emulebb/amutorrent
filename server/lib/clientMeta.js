@@ -76,9 +76,9 @@ const CLIENT_TYPES = {
       'completing': 'active',
       'paused': 'paused',
       'checking': 'checking',
-      'complete': 'completed',
+      'completed': 'completed',
       'error': 'error',
-      'missing_files': 'error'
+      'missingfiles': 'error'
     },
     connectionDefaults: {
       host: '', port: 4711, apiKey: '', useSsl: false, path: ''
