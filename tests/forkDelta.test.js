@@ -92,7 +92,7 @@ test('package workflow delegates current workspace materialization', () => {
 
   assert.match(workflow, /uses: emulebb\/emulebb-build\/\.github\/workflows\/reusable-workspace-command\.yml@main/);
   assert.match(workflow, /python -m emule_workspace package-amutorrent/);
-  assert.match(workflow, /--workspace-root \$env:EMULEBB_WORKSPACE_ROOT/);
+  assert.doesNotMatch(workflow, /--workspace-root/);
   assert.doesNotMatch(workflow, /Create CI workspace manifest/);
   assert.doesNotMatch(workflow, /Set-Content[\s\S]*deps\.json/);
   assert.doesNotMatch(workflow, /repos\\\\eMule/);

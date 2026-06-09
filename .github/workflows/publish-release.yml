@@ -161,7 +161,7 @@ jobs:
       artifact_name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
       artifact_path: release-artifacts/*
       failure_artifact_name: amutorrent-release-build-logs-${{ needs.prepare.outputs.package_version }}
-      failure_artifact_path: ${{ runner.temp }}\emulebb-output\logs\builds\**
+      failure_artifact_path: logs/builds/**
       command: |
         $packageVersion = "${{ needs.prepare.outputs.package_version }}"
 
