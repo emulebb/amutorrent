@@ -161,18 +161,17 @@ jobs:
       artifact_name: amutorrent-${{ needs.prepare.outputs.package_version }}-x64
       artifact_path: release-artifacts/*
       failure_artifact_name: amutorrent-release-build-logs-${{ needs.prepare.outputs.package_version }}
-      failure_artifact_path: workspaces/workspace/state/build-logs/**
+      failure_artifact_path: ${{ runner.temp }}\emulebb-output\logs\builds\**
       command: |
         $packageVersion = "${{ needs.prepare.outputs.package_version }}"
 
         python -m emule_workspace package-amutorrent `
-          --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
           --config Release `
           --platform x64 `
           --release-version $packageVersion `
           --clean
 
-        $releaseRoot = Join-Path $env:EMULEBB_WORKSPACE_ROOT "workspaces\workspace\state\release\emulebb-v$packageVersion"
+        $releaseRoot = Join-Path $env:EMULEBB_WORKSPACE_OUTPUT_ROOT "release\emulebb-v$packageVersion"
         $artifactRoot = Join-Path $env:GITHUB_WORKSPACE "release-artifacts"
         New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
 

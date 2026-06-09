@@ -22,7 +22,6 @@ jobs:
       timeout_minutes: 180
       command: |
           python -m emule_workspace package-amutorrent `
-          --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
           --config Release `
           --platform x64 `
           --release-version 0.7.3 `

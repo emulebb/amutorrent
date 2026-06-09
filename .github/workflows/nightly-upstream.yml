@@ -118,13 +118,12 @@ jobs:
       command: |
           $packageVersion = "${{ needs.prepare.outputs.package_version }}"
           python -m emule_workspace package-amutorrent `
-          --workspace-root $env:EMULEBB_WORKSPACE_ROOT `
           --config Release `
           --platform x64 `
           --release-version $packageVersion `
           --clean
 
-          $releaseRoot = Join-Path $env:EMULEBB_WORKSPACE_ROOT "workspaces\workspace\state\release\emulebb-v$packageVersion"
+          $releaseRoot = Join-Path $env:EMULEBB_WORKSPACE_OUTPUT_ROOT "release\emulebb-v$packageVersion"
           $artifactRoot = Join-Path $env:GITHUB_WORKSPACE "nightly-artifacts"
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
           Copy-Item -Path (Join-Path $releaseRoot "emulebb-$packageVersion-amutorrent-x64.zip") -Destination $artifactRoot
