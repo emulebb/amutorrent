@@ -19,7 +19,10 @@ const require = createRequire(import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const staticDir = path.join(__dirname, 'static');
-const distDir = path.join(staticDir, 'dist');
+const outputStaticDir = process.env.AMUTORRENT_STATIC_OUTPUT_ROOT
+  ? path.resolve(process.env.AMUTORRENT_STATIC_OUTPUT_ROOT)
+  : staticDir;
+const distDir = path.join(outputStaticDir, 'dist');
 
 // Ensure dist directory exists
 if (!existsSync(distDir)) {
