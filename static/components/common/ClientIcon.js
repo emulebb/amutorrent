@@ -1,7 +1,7 @@
 /**
  * ClientIcon Component
  *
- * Reusable icon component for client types (aMule/ED2K and BitTorrent clients)
+ * Reusable icon component for client types (ED2K and BitTorrent clients)
  * Used in badges, buttons, modals, and other UI elements
  */
 
@@ -11,7 +11,7 @@ const { createElement: h } = React;
 
 /**
  * Client icon component
- * @param {string} client - 'amule', 'rtorrent', or 'qbittorrent' (also accepts 'clientType' for backwards compatibility)
+ * @param {string} client - 'ed2k', 'amule', 'emulebb', 'rtorrent', or 'qbittorrent' (also accepts 'clientType' for backwards compatibility)
  * @param {string} clientType - Alias for 'client' prop (deprecated, use 'client')
  * @param {number} size - Size in pixels (default: 16)
  * @param {boolean} float - Whether to float left for text wrapping (default: false)
@@ -54,8 +54,12 @@ const ClientIcon = ({ client, clientType, size = 16, float = false, className = 
     defaultTitle = 'ED2K (eMuleBB)';
     alt = 'eMuleBB';
     src = '/static/logo-brax.png';
-  } else if (clientValue === 'amule' || clientValue === 'ed2k') {
+  } else if (clientValue === 'amule') {
     defaultTitle = 'ED2K (aMule)';
+    alt = 'ED2K';
+    src = '/static/logo-brax.png';
+  } else if (clientValue === 'ed2k') {
+    defaultTitle = 'ED2K';
     alt = 'ED2K';
     src = '/static/logo-brax.png';
   } else {

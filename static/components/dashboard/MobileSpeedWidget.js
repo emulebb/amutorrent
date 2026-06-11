@@ -3,7 +3,7 @@
  *
  * Compact speed chart with current speeds and network status for mobile view
  * Shows 24h speed history with simplified data points for performance
- * Supports switching between aMule and BitTorrent (rTorrent + qBittorrent) when both are active
+ * Supports switching between ED2K and BitTorrent (rTorrent + qBittorrent) when both are active
  * Multi-instance mode: per-instance network status dots with instance names
  */
 
@@ -115,7 +115,7 @@ const MobileSpeedWidget = ({ speedData, stats, theme }) => {
   const { ed2kConnected, bittorrentConnected } = useClientFilter();
   const { instances } = useStaticData();
 
-  // Show toggle when both aMule and BitTorrent clients are connected
+  // Show toggle when both ED2K and BitTorrent clients are connected
   const showBothClients = ed2kConnected && bittorrentConnected;
 
   // State for selected network type (when both are available)
@@ -258,7 +258,7 @@ const MobileSpeedWidget = ({ speedData, stats, theme }) => {
 
   if (selectedNetwork === 'ed2k') {
     if (tabInstances.length === 1) {
-      // Single aMule: show ED2K and KAD separately
+      // Single ED2K: show ED2K and KAD separately
       const inst = tabInstances[0];
       const ed2kNs = inst.networkStatus?.ed2k;
       const kadNs = inst.networkStatus?.kad;
@@ -277,7 +277,7 @@ const MobileSpeedWidget = ({ speedData, stats, theme }) => {
         )
       );
     } else {
-      // Multi aMule: per-instance combined ED2K/KAD
+      // Multi ED2K: per-instance combined ED2K/KAD
       networkStatus = h(React.Fragment, null,
         ...tabInstances.map(inst => {
           const ed2kNs = inst.networkStatus?.ed2k;
@@ -340,7 +340,7 @@ const MobileSpeedWidget = ({ speedData, stats, theme }) => {
       className: `p-1.5 ${selectedNetwork === 'ed2k'
         ? 'bg-blue-100 dark:bg-blue-900/50'
         : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`,
-      title: 'Show aMule'
+      title: 'Show ED2K'
     }, h(ClientIcon, { clientType: 'ed2k', size: 16 })),
     h('button', {
       onClick: () => setSelectedNetwork('bittorrent'),

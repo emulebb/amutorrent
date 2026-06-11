@@ -249,7 +249,7 @@ const StatisticsView = () => {
           // Speed charts (when chartMode === 'speed')
           chartMode === 'speed' && h(React.Fragment, null,
             h(DashboardChartWidget, {
-              title: chartTitle('aMule Speed', 'ed2k'),
+              title: chartTitle('ED2K Speed', 'ed2k'),
               height: '225px'
             }, renderSpeedChart('ed2k')),
             h(DashboardChartWidget, {
@@ -260,7 +260,7 @@ const StatisticsView = () => {
           // Transfer charts (when chartMode === 'transfer')
           chartMode === 'transfer' && h(React.Fragment, null,
             h(DashboardChartWidget, {
-              title: chartTitle('aMule Data Transferred', 'ed2k'),
+              title: chartTitle('ED2K Data Transferred', 'ed2k'),
               height: '225px'
             }, renderTransferChart('ed2k')),
             h(DashboardChartWidget, {

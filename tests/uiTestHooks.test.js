@@ -92,3 +92,34 @@ test('Add Download modal forwards selected ED2K instance to actions', () => {
   assert.match(source, /onAddEd2kLinks:\s*\(links,\s*categoryName,\s*isServerList,\s*instanceId\)/);
   assert.match(source, /actions\.search\.addEd2kLinks\(links\.join\('\\n'\),\s*categoryName,\s*isServerList,\s*instanceId\)/);
 });
+
+test('ED2K aggregate labels do not imply aMule-only metrics', () => {
+  const homeView = read('static/components/views/HomeView.js');
+  const statisticsView = read('static/components/views/StatisticsView.js');
+  const mobileSpeedWidget = read('static/components/dashboard/MobileSpeedWidget.js');
+  const clientIcon = read('static/components/common/ClientIcon.js');
+
+  assert.match(homeView, /'ED2K Speed \(24h\)'/);
+  assert.doesNotMatch(homeView, /'aMule Speed \(24h\)'/);
+
+  assert.match(statisticsView, /chartTitle\('ED2K Speed', 'ed2k'\)/);
+  assert.match(statisticsView, /chartTitle\('ED2K Data Transferred', 'ed2k'\)/);
+  assert.doesNotMatch(statisticsView, /chartTitle\('aMule (Speed|Data Transferred)', 'ed2k'\)/);
+
+  assert.match(mobileSpeedWidget, /title: 'Show ED2K'/);
+  assert.doesNotMatch(mobileSpeedWidget, /title: 'Show aMule'/);
+
+  assert.match(clientIcon, /clientValue === 'amule'[\s\S]*defaultTitle = 'ED2K \(aMule\)'/);
+  assert.match(clientIcon, /clientValue === 'ed2k'[\s\S]*defaultTitle = 'ED2K'/);
+});
+
+test('single ED2K chart labels use concrete client names only for one enabled backend', () => {
+  const chartConfig = read('static/hooks/useClientChartConfig.js');
+
+  assert.match(chartConfig, /export const getSingleNetworkDisplayName/);
+  assert.match(chartConfig, /enabledEd2kInstances\.length !== 1/);
+  assert.match(chartConfig, /return NETWORK_TYPE_LABELS\.ed2k/);
+  assert.match(chartConfig, /return CLIENT_NAMES\[inst\.type\]\?\.name \|\| NETWORK_TYPE_LABELS\.ed2k/);
+  assert.doesNotMatch(chartConfig, /showSingleAmule/);
+  assert.doesNotMatch(chartConfig, /singleNetworkName = .*'aMule'/);
+});

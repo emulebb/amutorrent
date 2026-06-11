@@ -206,12 +206,12 @@ const HomeView = () => {
               )
             ),
 
-            // BOTH CLIENTS: aMule Speed Chart
+            // BOTH CLIENTS: ED2K Speed Chart
             showBothCharts && h('div', { className: 'col-span-6 md:col-span-3' },
               h(DashboardChartWidget, {
                 title: h('span', { className: 'flex items-center gap-2' },
                   h(ClientIcon, { clientType: 'ed2k', size: 16 }),
-                  'aMule Speed (24h)'
+                  'ED2K Speed (24h)'
                 ),
                 height: '200px'
               },
