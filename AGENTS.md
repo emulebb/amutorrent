@@ -1,8 +1,13 @@
-# aMuTorrent Fork Agent Notes
+# Rules
 
-Always read and follow `EMULEBB_WORKSPACE_ROOT\repos\emulebb-tooling\docs\WORKSPACE-POLICY.md`
-before making workspace decisions. This file only records local guidance for the
-eMuleBB-maintained aMuTorrent fork.
+- Read `EMULEBB_WORKSPACE_ROOT\repos\emulebb-tooling\docs\WORKSPACE-POLICY.md`
+  first; it is authoritative for workspace-wide rules.
+- Start from
+  `EMULEBB_WORKSPACE_ROOT\repos\emulebb-tooling\docs\reference\AGENT-CHECKLIST.md`
+  for the repeatable operating path.
+
+Everything below is this repo's local guidance for the eMuleBB-maintained
+aMuTorrent fork.
 
 ## eMuleBB Integration Guidance
 
