@@ -1479,3 +1479,66 @@ test('eMuleBB manager includes REST error codes in request failures', async () =
     );
   });
 });
+
+test('eMuleBB delete confirms file removal for a partial transfer', async () => {
+  // A still-downloading transfer has no finished file to keep; eMuleBB requires
+  // ?confirm=true to remove it. The manager must add it even when deleteFiles=false.
+  await withMockEmulebb(({ method }) => {
+    if (method === 'DELETE') return { body: { items: [{ ok: true }] } };
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    const res = await manager.deleteItem('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', { deleteFiles: false, isComplete: false });
+    assert.equal(res.success, true);
+    const deletes = requests.filter(r => r.method === 'DELETE');
+    assert.equal(deletes.length, 1);
+    assert.match(deletes[0].url, /\/api\/v1\/transfers\/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\/files\?confirm=true$/);
+  });
+});
+
+test('eMuleBB delete keeps the file for a complete transfer (remove only)', async () => {
+  await withMockEmulebb(({ method }) => {
+    if (method === 'DELETE') return { body: { items: [{ ok: true }] } };
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    const res = await manager.deleteItem('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB', { deleteFiles: false, isComplete: true });
+    assert.equal(res.success, true);
+    const del = requests.find(r => r.method === 'DELETE');
+    assert.doesNotMatch(del.url, /files\?confirm=true/);
+    assert.match(del.url, /\/api\/v1\/transfers\/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB$/);
+  });
+});
+
+test('eMuleBB delete removes the file for a complete transfer when requested', async () => {
+  await withMockEmulebb(({ method }) => {
+    if (method === 'DELETE') return { body: { items: [{ ok: true }] } };
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    const res = await manager.deleteItem('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB', { deleteFiles: true, isComplete: true });
+    assert.equal(res.success, true);
+    const del = requests.find(r => r.method === 'DELETE');
+    assert.match(del.url, /\/files\?confirm=true$/);
+  });
+});
+
+test('eMuleBB delete retries with confirm=true when core rejects a partial remove', async () => {
+  // Stale cache: no isComplete hint reaches the manager, so the first attempt is a
+  // plain remove. The core rejects it as a partial; the manager retries with confirm.
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'DELETE') {
+      if (/\/files\?confirm=true$/.test(url)) return { body: { items: [{ ok: true }] } };
+      return { body: { items: [{ ok: false, error: 'partial transfer deletion requires /transfers/{hash}/files?confirm=true' }] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    const res = await manager.deleteItem('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', { deleteFiles: false });
+    assert.equal(res.success, true);
+    const deletes = requests.filter(r => r.method === 'DELETE');
+    assert.equal(deletes.length, 2);
+    assert.doesNotMatch(deletes[0].url, /files\?confirm=true/);
+    assert.match(deletes[1].url, /\/files\?confirm=true$/);
+  });
+});

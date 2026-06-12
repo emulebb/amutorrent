@@ -583,8 +583,16 @@ class EmulebbManager extends BaseClientManager {
     return unwrapItems(payload).find(file => hashMatches(file, hash)) || null;
   }
 
-  async _deleteTransferByHash(hash, deleteFiles) {
-    const suffix = deleteFiles === true ? '/files?confirm=true' : '';
+  async _deleteTransferByHash(hash, deleteFiles, isComplete) {
+    // WHY: eMuleBB core rejects removing a partial (incomplete) transfer without
+    // ?confirm=true — a .part has no finished file to "keep", so removal must
+    // delete the part data. aMuTorrent declares the eMuleBB cancelDeletesFiles
+    // capability (the delete modal promises temp files are auto-deleted and shows
+    // no checkbox), so honor that by confirming whenever the transfer is incomplete.
+    // Complete transfers keep the default (deleteFiles) so a finished file is not
+    // destroyed on a remove-only request.
+    const removeFiles = deleteFiles === true || isComplete === false;
+    const suffix = removeFiles ? '/files?confirm=true' : '';
     return await this._request('DELETE', `/api/v1/transfers/${encodeURIComponent(hash)}${suffix}`);
   }
 
@@ -597,7 +605,7 @@ class EmulebbManager extends BaseClientManager {
     this.trackDownload(hash, parsed.filename || result?.name || 'Unknown', parsed.size || result?.size || null, username, categoryName);
   }
 
-  async deleteItem(hash, { deleteFiles, isShared } = {}) {
+  async deleteItem(hash, { deleteFiles, isShared, isComplete } = {}) {
     if (isShared) {
       const suffix = deleteFiles === true ? '/file?confirm=true' : '';
       const payload = await this._request('DELETE', `/api/v1/shared-files/${encodeURIComponent(hash)}${suffix}`);
@@ -608,7 +616,7 @@ class EmulebbManager extends BaseClientManager {
     let payload;
     for (let attempt = 1; attempt <= SAFE_GET_RETRY_ATTEMPTS; attempt += 1) {
       try {
-        payload = await this._deleteTransferByHash(hash, deleteFiles);
+        payload = await this._deleteTransferByHash(hash, deleteFiles, isComplete);
         break;
       } catch (err) {
         if (!isRetryableTransportError(err) || attempt >= SAFE_GET_RETRY_ATTEMPTS) throw err;
@@ -621,6 +629,17 @@ class EmulebbManager extends BaseClientManager {
           return { success: true, pathsToDelete: [] };
         }
       }
+    }
+    // WHY: belt-and-suspenders — if a remove-only request still hit the core's
+    // partial-deletion guard (the transfer was incomplete but no isComplete hint
+    // reached us, e.g. stale cache), retry once with confirm=true. Deleting the
+    // .part is the only valid outcome for a partial, so this cannot destroy a
+    // finished file that a remove-only request meant to keep.
+    const alreadyConfirmed = deleteFiles === true || isComplete === false;
+    if (!alreadyConfirmed
+        && !isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })
+        && /confirm=true/i.test(operationErrorMessage(payload, ''))) {
+      payload = await this._deleteTransferByHash(hash, true, false);
     }
     if (isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
       this.trackDeletion(hash);

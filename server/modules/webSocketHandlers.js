@@ -1521,7 +1521,10 @@ class WebSocketHandlers extends BaseModule {
           const isShared = caps.sharedFiles && (source === 'shared' || (cachedItem && cachedItem.shared && !cachedItem.downloading));
 
           // Build options for deleteItem
-          const opts = { deleteFiles: !!deleteFiles, isShared };
+          // isComplete lets capability-managed clients (e.g. eMuleBB) decide whether
+          // a remove must also delete in-progress data: a partial transfer has no
+          // finished file to keep, so its manager confirms file deletion for it.
+          const opts = { deleteFiles: !!deleteFiles, isShared, isComplete: !!cachedItem?.isComplete };
           if (isShared && cachedItem?.raw?.path && cachedItem?.name) {
             opts.filePath = path.join(cachedItem.raw.path, cachedItem.rawName || cachedItem.name);
           }
