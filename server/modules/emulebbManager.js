@@ -542,7 +542,15 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async _transferAction(hash, action) {
-    await this._request('POST', `/api/v1/transfers/${encodeURIComponent(hash)}/operations/${encodeURIComponent(action)}`, {});
+    // WHY: the core runs pause/resume/stop through its bulk-mutation handler, which
+    // reports a refusal ("transfer cannot be <action>") as HTTP 200 with
+    // items[].ok=false rather than a non-2xx status. Returning unconditionally would
+    // report success for an action the core refused, so verify the per-item result
+    // and surface the core's reason (consistent with deleteItem/addEd2kLink).
+    const payload = await this._request('POST', `/api/v1/transfers/${encodeURIComponent(hash)}/operations/${encodeURIComponent(action)}`, {});
+    if (!isOperationSuccess(payload, { allowEmpty: true, expectedHash: hash })) {
+      throw new Error(operationErrorMessage(payload, `eMuleBB rejected the ${action} request`));
+    }
     return true;
   }
 

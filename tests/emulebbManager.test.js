@@ -1523,6 +1523,40 @@ test('eMuleBB delete removes the file for a complete transfer when requested', a
   });
 });
 
+test('eMuleBB pause/resume/stop report success only when the core accepts', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'POST' && /\/operations\/(pause|resume|stop)$/.test(url)) {
+      return { body: { items: [{ hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ok: true }] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    assert.equal(await manager.pause('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), true);
+    assert.equal(await manager.resume('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), true);
+    assert.equal(await manager.stop('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), true);
+    const posts = requests.filter(r => r.method === 'POST');
+    assert.equal(posts.length, 3);
+    assert.match(posts[0].url, /\/operations\/pause$/);
+  });
+});
+
+test('eMuleBB transfer action surfaces a core refusal instead of reporting success', async () => {
+  // The core returns HTTP 200 with items[].ok=false for a refused action; the
+  // manager must not swallow it as success (regression for the bulk-result contract).
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'POST' && /\/operations\/pause$/.test(url)) {
+      return { body: { items: [{ ok: false, error: 'transfer cannot be paused' }] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    await assert.rejects(
+      manager.pause('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
+      /transfer cannot be paused/
+    );
+  });
+});
+
 test('eMuleBB delete retries with confirm=true when core rejects a partial remove', async () => {
   // Stale cache: no isComplete hint reaches the manager, so the first attempt is a
   // plain remove. The core rejects it as a partial; the manager retries with confirm.
