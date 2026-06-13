@@ -12,6 +12,7 @@ const https = require('https');
 const BaseClientManager = require('../lib/BaseClientManager');
 const logger = require('../lib/logger');
 const { parseEd2kLink } = require('../lib/torrentUtils');
+const { EMULEBB_REST } = require('./config');
 const {
   buildCategoryMaps,
   formatBoolean,
@@ -47,20 +48,14 @@ function delay(ms) {
 
 const SAFE_GET_RETRY_ATTEMPTS = 8;
 const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
-// Shared files are fetched via the paginated REST endpoint (not the snapshot
-// page) on a slower cadence than the 3s poll, then cached and reused between
-// refreshes. The set is CAPPED: every exposed shared file flows through the live
+// Shared files (and transfers) are fetched via the paginated REST endpoint (not
+// the snapshot page) on a slower cadence than the 3s poll, then cached and reused
+// between refreshes. The sets are CAPPED: every exposed row flows through the live
 // unified-items/delta pipeline each cycle, so an uncapped large library (tens of
-// thousands) burns CPU and memory. The cap bounds that cost; raise
-// EMULEBB_SHARED_MAX_ITEMS to surface more. History tracking of these shared
-// files is disabled separately (clientMeta historyFromShared=false) so they do
-// not flood the download-history DB.
-const EMULEBB_SHARED_REFRESH_MS = 30000;
-const EMULEBB_SHARED_MAX_ITEMS = Math.max(1, Number(process.env.EMULEBB_SHARED_MAX_ITEMS) || 2000);
-// Transfers are paged too: a very large completed-transfer history would
-// otherwise serialize in full every poll. Bound it like the shared list; raise
-// EMULEBB_TRANSFERS_MAX_ITEMS to surface more.
-const EMULEBB_TRANSFERS_MAX_ITEMS = Math.max(1, Number(process.env.EMULEBB_TRANSFERS_MAX_ITEMS) || 5000);
+// thousands) burns CPU and memory. All page sizes, caps, and the refresh throttle
+// live centrally in config.js `EMULEBB_REST` (env-overridable via AMUTORRENT_EMULEBB_*).
+// History tracking of shared files is disabled separately (clientMeta
+// historyFromShared=false) so they do not flood the download-history DB.
 const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
   'ECONNRESET',
   'ECONNABORTED',
@@ -195,7 +190,7 @@ class EmulebbManager extends BaseClientManager {
     this.lastSnapshot = null;
     this.lastSharedFiles = [];
     // Full shared-file count reported by the REST page `total`; lastSharedFiles is
-    // capped at EMULEBB_SHARED_MAX_ITEMS, so these diverge on very large libraries.
+    // capped at EMULEBB_REST.sharedMaxItems, so these diverge on very large libraries.
     this.sharedFilesTotal = 0;
     this.sharedFilesTruncated = false;
     this.transfersTotal = 0;
@@ -407,7 +402,7 @@ class EmulebbManager extends BaseClientManager {
     });
     let snapshot = null;
     try {
-      snapshot = await this._request('GET', '/api/v1/snapshot?limit=100');
+      snapshot = await this._request('GET', `/api/v1/snapshot?limit=${EMULEBB_REST.snapshotLimit}`);
     } catch (err) {
       if (/SERVICE_BUSY/i.test(err.message || '') && /shared file hashing/i.test(err.message || '')) {
         this.warn(`eMuleBB shared files are still warming: ${logger.errorDetail(err)}`);
@@ -435,7 +430,7 @@ class EmulebbManager extends BaseClientManager {
     }
     // Shared files: enumerate the full set via the paginated endpoint rather than
     // the snapshot's bounded page (which capped the Shared Files view at ~100 of
-    // a large library). Throttled to EMULEBB_SHARED_REFRESH_MS and cached between
+    // a large library). Throttled to EMULEBB_REST.sharedRefreshMs and cached between
     // refreshes; while shared hashing/startup is still warming, reuse the cache.
     const sharedFilesReady = stats.sharedFilesReady !== false && stats.sharedHashingActive !== true;
     let sharedFiles;
@@ -443,17 +438,17 @@ class EmulebbManager extends BaseClientManager {
       sharedFiles = this.lastSharedFiles.slice();
     } else {
       const now = Date.now();
-      const stale = this.lastSharedFiles.length === 0 || (now - this._sharedFilesFetchedAt) >= EMULEBB_SHARED_REFRESH_MS;
+      const stale = this.lastSharedFiles.length === 0 || (now - this._sharedFilesFetchedAt) >= EMULEBB_REST.sharedRefreshMs;
       if (stale) {
         try {
-          const { rows, total, truncated } = await this._fetchAllPages('/api/v1/shared-files', { pageLimit: 1000, maxItems: EMULEBB_SHARED_MAX_ITEMS });
+          const { rows, total, truncated } = await this._fetchAllPages('/api/v1/shared-files', { pageLimit: EMULEBB_REST.pageSize, maxItems: EMULEBB_REST.sharedMaxItems });
           sharedFiles = rows.map(item => normalizeSharedFile(item, this.instanceId));
           this.lastSharedFiles = sharedFiles.slice();
           this.sharedFilesTotal = total;
           this.sharedFilesTruncated = truncated;
           this._sharedFilesFetchedAt = now;
           if (truncated) {
-            this.warn(`eMuleBB shared library has ${total} files; surfacing the first ${sharedFiles.length} (raise EMULEBB_SHARED_MAX_ITEMS to show more).`);
+            this.warn(`eMuleBB shared library has ${total} files; surfacing the first ${sharedFiles.length} (raise AMUTORRENT_EMULEBB_SHARED_MAX_ITEMS to show more).`);
           }
         } catch (err) {
           this.warn(`Failed to page eMuleBB shared files, falling back to snapshot page: ${logger.errorDetail(err)}`);
@@ -476,12 +471,12 @@ class EmulebbManager extends BaseClientManager {
     // the paged read fails so a transient error doesn't blank the list.
     let transferRows;
     try {
-      const { rows, total, truncated } = await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000, maxItems: EMULEBB_TRANSFERS_MAX_ITEMS });
+      const { rows, total, truncated } = await this._fetchAllPages('/api/v1/transfers', { pageLimit: EMULEBB_REST.pageSize, maxItems: EMULEBB_REST.transfersMaxItems });
       transferRows = rows;
       this.transfersTotal = total;
       this.transfersTruncated = truncated;
       if (truncated) {
-        this.warn(`eMuleBB has ${total} transfers; surfacing the first ${rows.length} (raise EMULEBB_TRANSFERS_MAX_ITEMS to show more).`);
+        this.warn(`eMuleBB has ${total} transfers; surfacing the first ${rows.length} (raise AMUTORRENT_EMULEBB_TRANSFERS_MAX_ITEMS to show more).`);
       }
     } catch (err) {
       this.warn(`Failed to page eMuleBB transfers, using snapshot page: ${logger.errorDetail(err)}`);
@@ -586,7 +581,7 @@ class EmulebbManager extends BaseClientManager {
    * sets. Pages go through the serialized request queue (eMuleBB runs one web
    * worker) and transient SERVICE_BUSY 503s are absorbed by the GET retry.
    */
-  async _fetchAllPages(path, { pageLimit = 1000, maxItems = Infinity } = {}) {
+  async _fetchAllPages(path, { pageLimit = EMULEBB_REST.pageSize, maxItems = Infinity } = {}) {
     const rows = [];
     let offset = 0;
     let total = null;
@@ -682,7 +677,7 @@ class EmulebbManager extends BaseClientManager {
           statsTreeLeaf('Shared hashing queue', parseFiniteNumber(stats.sharedHashingCount, 0)),
           statsTreeLeaf('Shared files ready', formatBoolean(stats.sharedFilesReady)),
           statsTreeLeaf('Shared library', this.sharedFilesTruncated
-            ? `${this.lastSharedFiles.length} of ${this.sharedFilesTotal} (capped at EMULEBB_SHARED_MAX_ITEMS)`
+            ? `${this.lastSharedFiles.length} of ${this.sharedFilesTotal} (capped at AMUTORRENT_EMULEBB_SHARED_MAX_ITEMS)`
             : parseFiniteNumber(this.sharedFilesTotal, this.lastSharedFiles.length)),
           statsTreeLeaf('Startup cache', formatBoolean(status.sharedStartupCache?.loaded, 'Loaded', status.sharedStartupCache?.rejected ? 'Rejected' : 'Not loaded'))
         ])
@@ -798,7 +793,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async _findTransferByHash(hash) {
-    const payload = await this._request('GET', '/api/v1/transfers?limit=100');
+    const payload = await this._request('GET', `/api/v1/transfers?limit=${EMULEBB_REST.snapshotLimit}`);
     return unwrapItems(payload).find(file => hashMatches(file, hash)) || null;
   }
 
@@ -1127,7 +1122,7 @@ class EmulebbManager extends BaseClientManager {
   async getSearchResults() {
     if (!this.lastSearchId) return this.getCachedSearchResults();
     const id = encodeURIComponent(this.lastSearchId);
-    const pageLimit = 1000;
+    const pageLimit = EMULEBB_REST.pageSize;
     // WHY: search results are paged ({ items, total, offset, limit }); walk every
     // page so the UI sees the full result set instead of just the first page.
     const firstPage = await this._request('GET', `/api/v1/searches/${id}?limit=${pageLimit}&offset=0`);
@@ -1254,7 +1249,7 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async getLog() {
-    return unwrapItems(await this._request('GET', '/api/v1/logs?limit=500'));
+    return unwrapItems(await this._request('GET', `/api/v1/logs?limit=${EMULEBB_REST.logsLimit}`));
   }
 
   async getSharedDirectories() {

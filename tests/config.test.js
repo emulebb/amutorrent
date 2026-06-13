@@ -221,3 +221,35 @@ test('environment-created ED2K clients preserve explicit IDs and names', async (
     await fs.rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('EMULEBB_REST centralizes the adapter list bounds with sane defaults', () => {
+  const config = require(CONFIG_MODULE_PATH);
+  assert.deepEqual(config.EMULEBB_REST, {
+    pageSize: 1000,
+    snapshotLimit: 100,
+    logsLimit: 500,
+    sharedMaxItems: 2000,
+    transfersMaxItems: 5000,
+    sharedRefreshMs: 30000,
+  });
+});
+
+test('intEnv parses integers, clamps below min, and falls back to the default', () => {
+  const { intEnv } = require(CONFIG_MODULE_PATH);
+  const KEY = 'AMUTORRENT_TEST_INTENV_TMP';
+  const prev = process.env[KEY];
+  try {
+    delete process.env[KEY];
+    assert.equal(intEnv(KEY, 42), 42);       // unset → default
+    process.env[KEY] = 'notanumber';
+    assert.equal(intEnv(KEY, 42), 42);       // non-numeric → default
+    process.env[KEY] = '0';
+    assert.equal(intEnv(KEY, 42), 42);       // below default min (1) → default
+    process.env[KEY] = '7';
+    assert.equal(intEnv(KEY, 42), 7);        // valid → parsed
+    process.env[KEY] = '5';
+    assert.equal(intEnv(KEY, 42, 10), 42);   // below explicit min → default
+  } finally {
+    if (prev === undefined) delete process.env[KEY]; else process.env[KEY] = prev;
+  }
+});

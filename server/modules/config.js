@@ -21,6 +21,25 @@ const COMMAND_TIMEOUT_MS = 300000;   // 5 minutes
 const CLEANUP_DAYS = 30;             // Keep metrics for 30 days
 const CLEANUP_HOUR = 3;              // Run cleanup at 3 AM
 
+// Reads an integer env var, clamped to >= min, falling back to a default.
+function intEnv(name, def, min = 1) {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= min ? Math.floor(v) : def;
+}
+
+// eMuleBB REST adapter list bounds. The adapter polls eMuleBB over REST every
+// AUTO_REFRESH_INTERVAL; these cap how much each polled/paged list pulls so a
+// very large profile (50k+ shared files) can't spike memory/latency. All
+// env-overridable and clamped to >= 1; defaults match the historical values.
+const EMULEBB_REST = {
+  pageSize:          intEnv('AMUTORRENT_EMULEBB_REST_PAGE_SIZE', 1000),     // REST offset/limit page size
+  snapshotLimit:     intEnv('AMUTORRENT_EMULEBB_SNAPSHOT_LIMIT', 100),      // bounded hot-poll snapshot page
+  logsLimit:         intEnv('AMUTORRENT_EMULEBB_LOGS_LIMIT', 500),          // log tail
+  sharedMaxItems:    intEnv('AMUTORRENT_EMULEBB_SHARED_MAX_ITEMS', 2000),   // shared-files fetch cap
+  transfersMaxItems: intEnv('AMUTORRENT_EMULEBB_TRANSFERS_MAX_ITEMS', 5000),// transfers fetch cap
+  sharedRefreshMs:   intEnv('AMUTORRENT_EMULEBB_SHARED_REFRESH_MS', 30000), // full shared re-page throttle
+};
+
 // ============================================================================
 // ENVIRONMENT VARIABLE MAPPINGS
 // ============================================================================
@@ -1445,3 +1464,5 @@ module.exports.COMMAND_TIMEOUT_MS = COMMAND_TIMEOUT_MS;
 module.exports.CLEANUP_DAYS = CLEANUP_DAYS;
 module.exports.CLEANUP_HOUR = CLEANUP_HOUR;
 module.exports.AMUTORRENT_DATA_DIR_ENV = AMUTORRENT_DATA_DIR_ENV;
+module.exports.EMULEBB_REST = EMULEBB_REST;
+module.exports.intEnv = intEnv;
