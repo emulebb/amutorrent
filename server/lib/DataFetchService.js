@@ -329,9 +329,12 @@ class DataFetchService extends BaseModule {
     this._injectMoveStatus(items);
 
     // Separate shared files for history: only from clients with separate completion tracking
-    // (aMule reports completion via shared files list; torrent clients use progress field)
+    // (aMule reports completion via shared files list; torrent clients use progress field).
+    // A client may opt out (historyFromShared===false, e.g. eMuleBB) so a large shared
+    // library is not upserted into the history DB every cycle. Default-allow when unset.
     const sharedFilesForHistory = allShared.filter(f =>
-      clientMeta.hasCapability(f.clientType, 'sharedMeansComplete')
+      clientMeta.hasCapability(f.clientType, 'sharedMeansComplete') &&
+      clientMeta.get(f.clientType)?.capabilities?.historyFromShared !== false
     );
 
     const result = {

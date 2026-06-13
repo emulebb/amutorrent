@@ -107,6 +107,11 @@ const CLIENT_TYPES = {
       multiFile: false,
       sharedFiles: true,
       sharedMeansComplete: true,
+      // Do not record eMuleBB shared files in download history: a large shared
+      // library (tens of thousands) would upsert every file into the history DB
+      // on each refresh cycle (CPU/IO burn) and flood the History view with
+      // pre-existing files that were never downloaded via aMuTorrent.
+      historyFromShared: false,
       removeSharedMustDeleteFiles: false,
       moveSharedForCategoryChange: false,
       refreshSharedAfterMove: false,
