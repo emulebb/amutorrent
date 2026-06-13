@@ -420,7 +420,16 @@ class EmulebbManager extends BaseClientManager {
     if (sharedFilesReady || sharedRows.length > 0) {
       this.lastSharedFiles = sharedFiles.slice();
     }
-    const transferRows = unwrapItems(snapshot.transfers);
+    // Transfers via the dedicated paginated endpoint so the downloads list is
+    // not capped at the snapshot page size; fall back to the snapshot page if
+    // the paged read fails so a transient error doesn't blank the list.
+    let transferRows;
+    try {
+      transferRows = await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000 });
+    } catch (err) {
+      this.warn(`Failed to page eMuleBB transfers, using snapshot page: ${logger.errorDetail(err)}`);
+      transferRows = unwrapItems(snapshot.transfers);
+    }
     const downloads = transferRows.map(item => normalizeTransfer(item, this.instanceId, this._categoryById));
     await Promise.all(downloads.map(async (download, index) => {
       const sourceCount = parseFiniteNumber(transferRows[index]?.sources ?? download.sourceCount, 0);
@@ -511,6 +520,36 @@ class EmulebbManager extends BaseClientManager {
         sharedStartupCache: status.sharedStartupCache || null
       }
     };
+  }
+
+  /**
+   * Walk a paginated eMuleBB list endpoint ({ items, total, limit, offset }) and
+   * return every row, bounded by maxItems. The snapshot caps each collection at
+   * its page size; this lets the adapter surface the full transfers and shared
+   * sets. Pages go through the serialized request queue (eMuleBB runs one web
+   * worker) and transient SERVICE_BUSY 503s are absorbed by the GET retry.
+   */
+  async _fetchAllPages(path, { pageLimit = 1000, maxItems = Infinity } = {}) {
+    const rows = [];
+    let offset = 0;
+    for (;;) {
+      const sep = path.includes('?') ? '&' : '?';
+      const payload = await this._request('GET', `${path}${sep}limit=${pageLimit}&offset=${offset}`);
+      const items = unwrapItems(payload);
+      if (items.length === 0) break;
+      for (const item of items) {
+        rows.push(item);
+        if (rows.length >= maxItems) return rows;
+      }
+      offset += items.length;
+      const total = Number(unwrapPayload(payload)?.total);
+      if (Number.isFinite(total)) {
+        if (offset >= total) break;
+      } else if (items.length < pageLimit) {
+        break;
+      }
+    }
+    return rows;
   }
 
   async _getTransferSources(hash, transfer) {
