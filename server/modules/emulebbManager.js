@@ -47,12 +47,16 @@ function delay(ms) {
 
 const SAFE_GET_RETRY_ATTEMPTS = 8;
 const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
-// Shared files are enumerated via the paginated REST endpoint (not the snapshot
-// page), but on a slower cadence than the 3s poll: the full set can be large
-// (tens of thousands) and changes slowly, so it is refreshed at most this often
-// and reused from cache between refreshes. The cap is a runaway guard.
+// Shared files are fetched via the paginated REST endpoint (not the snapshot
+// page) on a slower cadence than the 3s poll, then cached and reused between
+// refreshes. The set is CAPPED: every exposed shared file flows through the live
+// unified-items/delta pipeline each cycle, so an uncapped large library (tens of
+// thousands) burns CPU and memory. The cap bounds that cost; raise
+// EMULEBB_SHARED_MAX_ITEMS to surface more. History tracking of these shared
+// files is disabled separately (clientMeta historyFromShared=false) so they do
+// not flood the download-history DB.
 const EMULEBB_SHARED_REFRESH_MS = 30000;
-const EMULEBB_SHARED_MAX_ITEMS = 200000;
+const EMULEBB_SHARED_MAX_ITEMS = Math.max(1, Number(process.env.EMULEBB_SHARED_MAX_ITEMS) || 2000);
 const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
   'ECONNRESET',
   'ECONNABORTED',
