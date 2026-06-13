@@ -80,6 +80,13 @@ class MoveOperationManager extends BaseModule {
       throw new Error('Move operation manager not initialized');
     }
 
+    // Backends may disable file moves entirely (eMuleBB). Refuse here as a
+    // defense-in-depth guard so no host-side filesystem move is attempted even
+    // if a caller bypasses the move permission precheck. Default-allow elsewhere.
+    if (clientMeta.get(clientType)?.capabilities?.fileMove === false) {
+      throw new Error('File moves are not supported for this client');
+    }
+
     // Only clients with multiFile capability can have multi-file downloads
     const actualIsMultiFile = clientMeta.hasCapability(clientType, 'multiFile') ? isMultiFile : false;
 

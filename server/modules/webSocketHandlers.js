@@ -1921,6 +1921,12 @@ class WebSocketHandlers extends BaseModule {
       }
 
       const clientType = item.client || 'amule';
+      // Backends may disable file moves entirely (eMuleBB): refuse rather than
+      // attempt a host-side filesystem move. Default-allow when the flag is unset.
+      if (clientMeta.get(clientType)?.capabilities?.fileMove === false) {
+        results.push({ fileHash, canMove: false, reason: 'unsupported', message: 'File moves are not supported for this client', clientType });
+        continue;
+      }
       const hasNativeMove = clientMeta.hasCapability(clientType, 'nativeMove');
       const cacheKey = item.instanceId || clientType;
 

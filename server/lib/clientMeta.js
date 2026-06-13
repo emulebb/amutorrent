@@ -98,6 +98,11 @@ const CLIENT_TYPES = {
     },
     capabilities: {
       nativeMove: false,
+      // File moves are disabled for eMuleBB for now: aMuTorrent would otherwise
+      // perform a host-side filesystem move (nativeMove=false path), which only
+      // works when aMuTorrent shares the filesystem with eMuleBB's incoming dir
+      // and is unsafe for remote/containerized eMuleBB. Default-allow elsewhere.
+      fileMove: false,
       categoryChangeAutoMoves: false,
       multiFile: false,
       sharedFiles: true,

@@ -104,7 +104,8 @@ export const useItemContextMenu = ({
 
     // Move to... (gated on ownership + edit_downloads capability)
     // Hide for clients that can't relocate active downloads (e.g., aMule temp files)
-    const canMoveItem = caps.moveActiveDownloads || item.complete || (item.shared && !item.downloading);
+    // and for backends that disable file moves entirely (eMuleBB, fileMove===false).
+    const canMoveItem = caps.fileMove !== false && (caps.moveActiveDownloads || item.complete || (item.shared && !item.downloading));
     if (onMoveTo && canMoveItem && hasCap('edit_downloads') && canMutate && status.key !== 'moving') {
       menuItems.push({
         label: 'Move to...',
