@@ -1458,6 +1458,35 @@ test('eMuleBB manager paginates search results across pages', async () => {
   });
 });
 
+test('eMuleBB manager bounds a very large shared library to the configured cap', async () => {
+  const TOTAL = 50000;
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/shared-files') {
+      const params = new URLSearchParams(url.split('?')[1] || '');
+      const offset = Number(params.get('offset') || 0);
+      const limit = Number(params.get('limit') || 100);
+      const end = Math.min(offset + limit, TOTAL);
+      const items = [];
+      for (let i = offset; i < end; i += 1) {
+        items.push({ hash: i.toString(16).padStart(32, '0'), name: `f${i}.bin`, sizeBytes: 1 });
+      }
+      return { body: { items, total: TOTAL, offset, limit } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port, requests }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const { rows, total, truncated } = await manager._fetchAllPages('/api/v1/shared-files', { pageLimit: 1000, maxItems: 2000 });
+    assert.equal(rows.length, 2000);
+    assert.equal(total, TOTAL);
+    assert.equal(truncated, true);
+    // Bounded: surfacing 2000 of 50000 must not walk all 50 pages.
+    const sharedGets = requests.filter(r => r.method === 'GET' && r.url.startsWith('/api/v1/shared-files'));
+    assert.equal(sharedGets.length, 2);
+  });
+});
+
 test('eMuleBB manager maps native shared-directory REST operations', async () => {
   await withMockEmulebb(({ method, url, body }) => {
     if (method === 'GET' && url === '/api/v1/shared-directories') {

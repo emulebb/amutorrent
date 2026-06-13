@@ -190,6 +190,10 @@ class EmulebbManager extends BaseClientManager {
     super();
     this.lastSnapshot = null;
     this.lastSharedFiles = [];
+    // Full shared-file count reported by the REST page `total`; lastSharedFiles is
+    // capped at EMULEBB_SHARED_MAX_ITEMS, so these diverge on very large libraries.
+    this.sharedFilesTotal = 0;
+    this.sharedFilesTruncated = false;
     this._sharedFilesFetchedAt = 0;
     this.lastSearchId = null;
     this.lastSearchResults = [];
@@ -436,10 +440,15 @@ class EmulebbManager extends BaseClientManager {
       const stale = this.lastSharedFiles.length === 0 || (now - this._sharedFilesFetchedAt) >= EMULEBB_SHARED_REFRESH_MS;
       if (stale) {
         try {
-          const rows = await this._fetchAllPages('/api/v1/shared-files', { pageLimit: 1000, maxItems: EMULEBB_SHARED_MAX_ITEMS });
+          const { rows, total, truncated } = await this._fetchAllPages('/api/v1/shared-files', { pageLimit: 1000, maxItems: EMULEBB_SHARED_MAX_ITEMS });
           sharedFiles = rows.map(item => normalizeSharedFile(item, this.instanceId));
           this.lastSharedFiles = sharedFiles.slice();
+          this.sharedFilesTotal = total;
+          this.sharedFilesTruncated = truncated;
           this._sharedFilesFetchedAt = now;
+          if (truncated) {
+            this.warn(`eMuleBB shared library has ${total} files; surfacing the first ${sharedFiles.length} (raise EMULEBB_SHARED_MAX_ITEMS to show more).`);
+          }
         } catch (err) {
           this.warn(`Failed to page eMuleBB shared files, falling back to snapshot page: ${logger.errorDetail(err)}`);
           if (this.lastSharedFiles.length > 0) {
@@ -461,7 +470,7 @@ class EmulebbManager extends BaseClientManager {
     // the paged read fails so a transient error doesn't blank the list.
     let transferRows;
     try {
-      transferRows = await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000 });
+      transferRows = (await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000 })).rows;
     } catch (err) {
       this.warn(`Failed to page eMuleBB transfers, using snapshot page: ${logger.errorDetail(err)}`);
       transferRows = unwrapItems(snapshot.transfers);
@@ -568,24 +577,29 @@ class EmulebbManager extends BaseClientManager {
   async _fetchAllPages(path, { pageLimit = 1000, maxItems = Infinity } = {}) {
     const rows = [];
     let offset = 0;
+    let total = null;
     for (;;) {
       const sep = path.includes('?') ? '&' : '?';
       const payload = await this._request('GET', `${path}${sep}limit=${pageLimit}&offset=${offset}`);
       const items = unwrapItems(payload);
+      const pageTotal = Number(unwrapPayload(payload)?.total);
+      if (Number.isFinite(pageTotal)) total = pageTotal;
       if (items.length === 0) break;
+      let capped = false;
       for (const item of items) {
         rows.push(item);
-        if (rows.length >= maxItems) return rows;
+        if (rows.length >= maxItems) { capped = true; break; }
       }
+      if (capped) break;
       offset += items.length;
-      const total = Number(unwrapPayload(payload)?.total);
       if (Number.isFinite(total)) {
         if (offset >= total) break;
       } else if (items.length < pageLimit) {
         break;
       }
     }
-    return rows;
+    const resolvedTotal = Number.isFinite(total) ? total : rows.length;
+    return { rows, total: resolvedTotal, truncated: rows.length < resolvedTotal };
   }
 
   async _getTransferSources(hash, transfer) {
@@ -655,6 +669,9 @@ class EmulebbManager extends BaseClientManager {
           statsTreeLeaf('Shared hashing active', formatBoolean(stats.sharedHashingActive)),
           statsTreeLeaf('Shared hashing queue', parseFiniteNumber(stats.sharedHashingCount, 0)),
           statsTreeLeaf('Shared files ready', formatBoolean(stats.sharedFilesReady)),
+          statsTreeLeaf('Shared library', this.sharedFilesTruncated
+            ? `${this.lastSharedFiles.length} of ${this.sharedFilesTotal} (capped at EMULEBB_SHARED_MAX_ITEMS)`
+            : parseFiniteNumber(this.sharedFilesTotal, this.lastSharedFiles.length)),
           statsTreeLeaf('Startup cache', formatBoolean(status.sharedStartupCache?.loaded, 'Loaded', status.sharedStartupCache?.rejected ? 'Rejected' : 'Not loaded'))
         ])
       ])
@@ -1113,9 +1130,9 @@ class EmulebbManager extends BaseClientManager {
       };
       return this.getCachedSearchResults();
     }
-    // eMuleBB returns search results under "results" (the master's
-    // search/results contract), not "items" like other collections.
-    const pageResults = page => (Array.isArray(page.results) ? page.results : []);
+    // Search results are paged like every other collection: rows under "items"
+    // alongside total/offset/limit.
+    const pageResults = page => (Array.isArray(page.items) ? page.items : []);
     const rawItems = [...pageResults(firstPage)];
     const total = Number(firstPage.total);
     let offset = rawItems.length;
