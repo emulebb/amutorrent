@@ -1113,12 +1113,15 @@ class EmulebbManager extends BaseClientManager {
       };
       return this.getCachedSearchResults();
     }
-    const rawItems = Array.isArray(firstPage.items) ? [...firstPage.items] : [];
+    // eMuleBB returns search results under "results" (the master's
+    // search/results contract), not "items" like other collections.
+    const pageResults = page => (Array.isArray(page.results) ? page.results : []);
+    const rawItems = [...pageResults(firstPage)];
     const total = Number(firstPage.total);
     let offset = rawItems.length;
     while (Number.isFinite(total) && offset < total) {
       const page = await this._request('GET', `/api/v1/searches/${id}?limit=${pageLimit}&offset=${offset}`);
-      const items = Array.isArray(page.items) ? page.items : [];
+      const items = pageResults(page);
       if (items.length === 0) break;
       rawItems.push(...items);
       offset += items.length;
