@@ -47,6 +47,12 @@ function delay(ms) {
 
 const SAFE_GET_RETRY_ATTEMPTS = 8;
 const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
+// Shared files are enumerated via the paginated REST endpoint (not the snapshot
+// page), but on a slower cadence than the 3s poll: the full set can be large
+// (tens of thousands) and changes slowly, so it is refreshed at most this often
+// and reused from cache between refreshes. The cap is a runaway guard.
+const EMULEBB_SHARED_REFRESH_MS = 30000;
+const EMULEBB_SHARED_MAX_ITEMS = 200000;
 const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
   'ECONNRESET',
   'ECONNABORTED',
@@ -180,6 +186,7 @@ class EmulebbManager extends BaseClientManager {
     super();
     this.lastSnapshot = null;
     this.lastSharedFiles = [];
+    this._sharedFilesFetchedAt = 0;
     this.lastSearchId = null;
     this.lastSearchResults = [];
     this.lastSearchMeta = null;
@@ -412,13 +419,38 @@ class EmulebbManager extends BaseClientManager {
     if (lifecycle && this.client) {
       this.client.lifecycle = lifecycle;
     }
-    const sharedRows = unwrapItems(snapshot.sharedFiles);
+    // Shared files: enumerate the full set via the paginated endpoint rather than
+    // the snapshot's bounded page (which capped the Shared Files view at ~100 of
+    // a large library). Throttled to EMULEBB_SHARED_REFRESH_MS and cached between
+    // refreshes; while shared hashing/startup is still warming, reuse the cache.
     const sharedFilesReady = stats.sharedFilesReady !== false && stats.sharedHashingActive !== true;
-    const sharedFiles = !sharedFilesReady && sharedRows.length === 0
-      ? this.lastSharedFiles.slice()
-      : sharedRows.map(item => normalizeSharedFile(item, this.instanceId));
-    if (sharedFilesReady || sharedRows.length > 0) {
-      this.lastSharedFiles = sharedFiles.slice();
+    let sharedFiles;
+    if (!sharedFilesReady) {
+      sharedFiles = this.lastSharedFiles.slice();
+    } else {
+      const now = Date.now();
+      const stale = this.lastSharedFiles.length === 0 || (now - this._sharedFilesFetchedAt) >= EMULEBB_SHARED_REFRESH_MS;
+      if (stale) {
+        try {
+          const rows = await this._fetchAllPages('/api/v1/shared-files', { pageLimit: 1000, maxItems: EMULEBB_SHARED_MAX_ITEMS });
+          sharedFiles = rows.map(item => normalizeSharedFile(item, this.instanceId));
+          this.lastSharedFiles = sharedFiles.slice();
+          this._sharedFilesFetchedAt = now;
+        } catch (err) {
+          this.warn(`Failed to page eMuleBB shared files, falling back to snapshot page: ${logger.errorDetail(err)}`);
+          if (this.lastSharedFiles.length > 0) {
+            sharedFiles = this.lastSharedFiles.slice();
+          } else {
+            // No cache yet: degrade to the snapshot's bounded shared page so the
+            // view is not empty. Leave _sharedFilesFetchedAt unset so the next
+            // ready cycle retries the full paginated walk.
+            sharedFiles = unwrapItems(snapshot.sharedFiles).map(item => normalizeSharedFile(item, this.instanceId));
+            this.lastSharedFiles = sharedFiles.slice();
+          }
+        }
+      } else {
+        sharedFiles = this.lastSharedFiles.slice();
+      }
     }
     // Transfers via the dedicated paginated endpoint so the downloads list is
     // not capped at the snapshot page size; fall back to the snapshot page if
