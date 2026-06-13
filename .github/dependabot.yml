@@ -8,6 +8,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # esbuild >= 0.28 marks Safari 14 as lacking destructuring support and
+      # then fails to lower it, breaking the frontend bundle for the
+      # build.mjs target list (es2020,chrome80,firefox80,safari14). Hold at
+      # 0.25.x until the build target is migrated deliberately.
+      - dependency-name: "esbuild"
+        versions: [">=0.26.0"]
   - package-ecosystem: npm
     directory: /server
     schedule:
