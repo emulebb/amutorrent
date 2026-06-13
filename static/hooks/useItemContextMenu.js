@@ -123,7 +123,13 @@ export const useItemContextMenu = ({
     const canShowPauseResume = actionsForBittorrentOnly ? isBittorrent : true;
     if (canShowPauseResume && onPause && onResume && hasCap('pause_resume') && canMutate && status.key !== 'checking' && status.key !== 'hashing-queued') {
       const needsResume = status.key === 'paused' || status.key === 'stopped' || status.key === 'error';
-      const showPauseResumeItem = !caps.stopReplacesPause || needsResume;
+      // A completed shared file on an ED2K backend (sharedMeansComplete) has no
+      // active transfer to pause — the backend refuses Pause on it and the UI would
+      // only surface an error toast — so don't offer Pause for it. Resume states
+      // (paused/stopped/error) are unaffected, as are BitTorrent seeds.
+      const isCompletedShare = caps.sharedMeansComplete && !needsResume
+        && (status.key === 'completed' || item.complete || item.shared);
+      const showPauseResumeItem = (!caps.stopReplacesPause || needsResume) && !isCompletedShare;
       if (showPauseResumeItem) {
         menuItems.push({
           label: (status.key === 'stopped' || status.key === 'error') ? 'Start' : (status.key === 'paused' ? 'Resume' : 'Pause'),
