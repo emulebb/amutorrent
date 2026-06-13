@@ -1097,20 +1097,34 @@ class EmulebbManager extends BaseClientManager {
 
   async getSearchResults() {
     if (!this.lastSearchId) return this.getCachedSearchResults();
-    const payload = await this._request('GET', `/api/v1/searches/${encodeURIComponent(this.lastSearchId)}`);
-    const backendMethod = payload.method ? String(payload.method).toLowerCase() : null;
+    const id = encodeURIComponent(this.lastSearchId);
+    const pageLimit = 1000;
+    // WHY: search results are paged ({ items, total, offset, limit }); walk every
+    // page so the UI sees the full result set instead of just the first page.
+    const firstPage = await this._request('GET', `/api/v1/searches/${id}?limit=${pageLimit}&offset=0`);
+    const backendMethod = firstPage.method ? String(firstPage.method).toLowerCase() : null;
     if (!searchMethodMatches(this.lastSearchMeta?.method, backendMethod)) {
       this.warn(`Ignoring eMuleBB search results for method "${backendMethod}" while "${this.lastSearchMeta.method}" was requested`);
       this.lastSearchResults = [];
       this.lastSearchMeta = {
         ...(this.lastSearchMeta || {}),
         id: this.lastSearchId,
-        status: payload.status || this.lastSearchMeta?.status || 'unknown'
+        status: firstPage.status || this.lastSearchMeta?.status || 'unknown'
       };
       return this.getCachedSearchResults();
     }
+    const rawItems = Array.isArray(firstPage.items) ? [...firstPage.items] : [];
+    const total = Number(firstPage.total);
+    let offset = rawItems.length;
+    while (Number.isFinite(total) && offset < total) {
+      const page = await this._request('GET', `/api/v1/searches/${id}?limit=${pageLimit}&offset=${offset}`);
+      const items = Array.isArray(page.items) ? page.items : [];
+      if (items.length === 0) break;
+      rawItems.push(...items);
+      offset += items.length;
+    }
     const expectedMethod = backendMethod || this.lastSearchMeta?.method || null;
-    const results = (payload.results || [])
+    const results = rawItems
       .filter(item => searchMethodMatches(expectedMethod, item.method))
       .map(item => ({
       fileHash: item.hash,
@@ -1125,7 +1139,7 @@ class EmulebbManager extends BaseClientManager {
     this.lastSearchMeta = {
       ...(this.lastSearchMeta || {}),
       id: this.lastSearchId,
-      status: payload.status || this.lastSearchMeta?.status || 'unknown'
+      status: firstPage.status || this.lastSearchMeta?.status || 'unknown'
     };
     return this.getCachedSearchResults();
   }

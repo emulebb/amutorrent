@@ -1286,11 +1286,14 @@ test('eMuleBB manager sends explicit search method and file type payloads', asyn
       const ids = { ubuntu: '10', photo: '11', debian: '12', fedora: '13' };
       return { body: { id: ids[body.query], status: 'running', results: [] } };
     }
-    if (method === 'GET' && (url === '/api/v1/searches/10' || url === '/api/v1/searches/11' || url === '/api/v1/searches/12' || url === '/api/v1/searches/13')) {
+    if (method === 'GET' && ['/api/v1/searches/10', '/api/v1/searches/11', '/api/v1/searches/12', '/api/v1/searches/13'].includes(url.split('?')[0])) {
       return {
         body: {
           status: 'complete',
-          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'result.bin', sizeBytes: 42, sources: 5 }]
+          items: [{ hash: '0123456789abcdef0123456789abcdef', name: 'result.bin', sizeBytes: 42, sources: 5 }],
+          total: 1,
+          offset: 0,
+          limit: 100
         }
       };
     }
@@ -1322,16 +1325,19 @@ test('eMuleBB manager keeps cached search results scoped to the requested method
       if (body.method === 'kad') return { body: { id: '20', status: 'running' } };
       if (body.method === 'server') return { body: { id: '21', status: 'running' } };
     }
-    if (method === 'GET' && url === '/api/v1/searches/20') {
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/searches/20') {
       return {
         body: {
           status: 'complete',
-          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5 }]
+          items: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5 }],
+          total: 1,
+          offset: 0,
+          limit: 100
         }
       };
     }
-    if (method === 'GET' && url === '/api/v1/searches/21') {
-      return { body: { status: 'complete', results: [] } };
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/searches/21') {
+      return { body: { status: 'complete', items: [], total: 0, offset: 0, limit: 100 } };
     }
     return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
   }, async ({ port }) => {
@@ -1357,13 +1363,16 @@ test('eMuleBB manager ignores native search payloads for the wrong method', asyn
       assert.equal(body.method, 'server');
       return { body: { id: '30', status: 'running', method: 'server' } };
     }
-    if (method === 'GET' && url === '/api/v1/searches/30') {
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/searches/30') {
       return {
         body: {
           id: '30',
           status: 'complete',
           method: 'kad',
-          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5, method: 'kad' }]
+          items: [{ hash: '0123456789abcdef0123456789abcdef', name: 'kad.bin', sizeBytes: 42, sources: 5, method: 'kad' }],
+          total: 1,
+          offset: 0,
+          limit: 100
         }
       };
     }
@@ -1385,13 +1394,16 @@ test('eMuleBB manager accepts automatic searches with resolved native methods', 
       assert.equal(body.method, 'automatic');
       return { body: { id: '31', status: 'running', method: 'automatic' } };
     }
-    if (method === 'GET' && url === '/api/v1/searches/31') {
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/searches/31') {
       return {
         body: {
           id: '31',
           status: 'complete',
           method: 'server',
-          results: [{ hash: '0123456789abcdef0123456789abcdef', name: 'server.bin', sizeBytes: 42, sources: 5, method: 'server' }]
+          items: [{ hash: '0123456789abcdef0123456789abcdef', name: 'server.bin', sizeBytes: 42, sources: 5, method: 'server' }],
+          total: 1,
+          offset: 0,
+          limit: 100
         }
       };
     }
@@ -1404,6 +1416,45 @@ test('eMuleBB manager accepts automatic searches with resolved native methods', 
     assert.equal(result.searchMethod, 'automatic');
     assert.equal(result.resultsLength, 1);
     assert.equal(result.results[0].fileName, 'server.bin');
+  });
+});
+
+test('eMuleBB manager paginates search results across pages', async () => {
+  const pages = {
+    '0': [
+      { hash: 'a'.repeat(32), name: 'r0.bin', sizeBytes: 1, sources: 1, method: 'kad' },
+      { hash: 'b'.repeat(32), name: 'r1.bin', sizeBytes: 2, sources: 2, method: 'kad' }
+    ],
+    '2': [
+      { hash: 'c'.repeat(32), name: 'r2.bin', sizeBytes: 3, sources: 3, method: 'kad' }
+    ]
+  };
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'POST' && url === '/api/v1/searches') {
+      return { body: { id: '40', status: 'running', method: 'kad' } };
+    }
+    if (method === 'GET' && url.split('?')[0] === '/api/v1/searches/40') {
+      const offset = Number(new URLSearchParams(url.split('?')[1] || '').get('offset') || 0);
+      return {
+        body: {
+          id: '40',
+          status: 'complete',
+          method: 'kad',
+          items: pages[String(offset)] || [],
+          total: 3,
+          offset,
+          limit: 1000
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const result = await manager.search('rocco', 'kad');
+    assert.equal(result.resultsLength, 3);
+    assert.deepEqual(result.results.map(r => r.fileName), ['r0.bin', 'r1.bin', 'r2.bin']);
   });
 });
 
