@@ -645,6 +645,10 @@ class CategoryManager extends BaseModule {
     for (const mgr of registry.getConnected()) {
       if (mgr.instanceId === excludeInstanceId) continue;
       if (!clientMeta.hasCapability(mgr.clientType, 'categories')) continue;
+      // Read-only backends (e.g. eMuleBB) manage category lifecycle in their own
+      // UI; aMuTorrent imports/displays their categories but never pushes
+      // create/edit/delete to them. Default-allow when the flag is unset.
+      if (clientMeta.get(mgr.clientType).capabilities.categoryWrite === false) continue;
 
       const batch = allCategories.map(cat => ({
         name: cat.name, path: cat.path || '',
@@ -726,6 +730,10 @@ class CategoryManager extends BaseModule {
     if (!skipClients) {
       for (const mgr of registry.getConnected()) {
         if (!clientMeta.hasCapability(mgr.clientType, 'categories')) continue;
+      // Read-only backends (e.g. eMuleBB) manage category lifecycle in their own
+      // UI; aMuTorrent imports/displays their categories but never pushes
+      // create/edit/delete to them. Default-allow when the flag is unset.
+      if (clientMeta.get(mgr.clientType).capabilities.categoryWrite === false) continue;
         try {
           const result = await mgr.ensureCategoryExists({
             name, path: category.path || '', comment: category.comment || '',
@@ -784,6 +792,10 @@ class CategoryManager extends BaseModule {
     if (!skipClients && name !== 'Default') {
       for (const mgr of registry.getConnected()) {
         if (!clientMeta.hasCapability(mgr.clientType, 'categories')) continue;
+      // Read-only backends (e.g. eMuleBB) manage category lifecycle in their own
+      // UI; aMuTorrent imports/displays their categories but never pushes
+      // create/edit/delete to them. Default-allow when the flag is unset.
+      if (clientMeta.get(mgr.clientType).capabilities.categoryWrite === false) continue;
         try {
           const amuleColor = hexColorToAmule(category.color);
           const result = await mgr.editCategory({
@@ -834,6 +846,10 @@ class CategoryManager extends BaseModule {
     let clientVerification = null;
     for (const mgr of registry.getConnected()) {
       if (!clientMeta.hasCapability(mgr.clientType, 'categories')) continue;
+      // Read-only backends (e.g. eMuleBB) manage category lifecycle in their own
+      // UI; aMuTorrent imports/displays their categories but never pushes
+      // create/edit/delete to them. Default-allow when the flag is unset.
+      if (clientMeta.get(mgr.clientType).capabilities.categoryWrite === false) continue;
       try {
         const result = await mgr.renameCategory({
           oldName,
@@ -888,6 +904,10 @@ class CategoryManager extends BaseModule {
     // Delete from all connected clients that support categories
     for (const mgr of registry.getConnected()) {
       if (!clientMeta.hasCapability(mgr.clientType, 'categories')) continue;
+      // Read-only backends (e.g. eMuleBB) manage category lifecycle in their own
+      // UI; aMuTorrent imports/displays their categories but never pushes
+      // create/edit/delete to them. Default-allow when the flag is unset.
+      if (clientMeta.get(mgr.clientType).capabilities.categoryWrite === false) continue;
       try {
         await mgr.deleteCategory({ id: category.amuleIds?.[mgr.instanceId], name });
         this.log(`📤 Deleted category "${name}" from ${mgr.clientType} on ${mgr.instanceId}`);

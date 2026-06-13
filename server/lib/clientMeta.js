@@ -115,6 +115,12 @@ const CLIENT_TYPES = {
       categoriesRead: true,
       categoryAssignment: true,
       categories: true,
+      // Category lifecycle (create/edit/delete) is managed in the eMuleBB UI and
+      // only displayed here. eMuleBB's REST category mutations marshal to the main
+      // UI thread and time out (503) under large profiles, so aMuTorrent must not
+      // push category writes to it. Reads, import, and assignment stay enabled.
+      // WHY: see backlog follow-up for the eMuleBB-side category dispatch fix.
+      categoryWrite: false,
       logs: true,
       renameFile: true,
       fileRatingComment: true,

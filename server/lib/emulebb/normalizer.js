@@ -275,6 +275,95 @@ function normalizeUpload(client, instanceId) {
   };
 }
 
+/**
+ * eMuleBB reports upload part-progress as the obtained/total ED2K part counts
+ * for the requested file. Convert to a 0–100 percent for the peer row, or null
+ * when the counts can't produce a meaningful value.
+ */
+function computeUploadPartsPercent(obtained, total) {
+  const t = Number(total);
+  const o = Number(obtained);
+  if (!Number.isFinite(t) || t <= 0 || !Number.isFinite(o) || o < 0) return null;
+  return Math.min(100, Math.round((o * 100) / t));
+}
+
+/**
+ * Normalize one eMuleBB upload row into the unified peer-entry contract consumed
+ * by unifiedItemBuilder.buildPeer (role/address/uploadRate/software/...), so an
+ * active upload renders as an upload peer on its file's item. This is a distinct
+ * shape from normalizeUpload, which targets the legacy standalone uploads array.
+ */
+function normalizeUploadPeer(client) {
+  const software = [client.clientSoftware, client.clientMod]
+    .map(part => String(part || '').trim())
+    .filter(Boolean)
+    .join(' ');
+  return {
+    role: 'upload',
+    clientType: 'emulebb',
+    id: client.userHash || client.clientId || `${client.address || client.ip || ''}:${client.port || 0}`,
+    userName: client.userName || '',
+    fileName: client.requestedFileName || '',
+    address: client.address || client.ip || '',
+    port: client.port || 0,
+    software: software || 'Unknown',
+    uploadRate: kibPerSecondToBytesPerSecond(client.uploadSpeedKiBps ?? client.uploadSpeed),
+    downloadRate: 0,
+    uploadTotal: 0,
+    uploadSession: client.uploadedBytes ?? client.sessionUploaded ?? null,
+    uploadState: client.uploadState || 'uploading',
+    completedPercent: computeUploadPartsPercent(client.requestedPartsObtained, client.requestedPartsTotal),
+    isEncrypted: false,
+    isIncoming: false
+  };
+}
+
+/**
+ * Build a shared-file-shaped item for a file that is being uploaded but is not
+ * present in the snapshot frame. eMuleBB shares tens of thousands of files while
+ * the snapshot carries only a bounded page, so an uploaded file is almost never
+ * in the frame; the self-describing upload rows let us reconstruct the item from
+ * the requested-file fields and carry its upload peers and aggregated speed.
+ *
+ * @param {Object} group - { hash, name, size, peers, uploadSpeed }
+ */
+function normalizeUploadFile(group, instanceId) {
+  const item = normalizeSharedFile(
+    { hash: group.hash, name: group.name, sizeBytes: group.size },
+    instanceId
+  );
+  item.peers = group.peers;
+  item.uploadSpeed = group.uploadSpeed;
+  item.syntheticUploadFile = true;
+  return item;
+}
+
+/**
+ * Normalize an eMuleBB REST server row into the EC-compatible shape the
+ * aMuTorrent servers view consumes. The frontend was built around aMule's EC
+ * field names (`EC_TAG_SERVER_*`, `_value`), so the eMuleBB-native fields
+ * (`name`/`description`/`ip`/`port`/...) must be mapped onto that contract or
+ * the table renders empty rows. `_value` is the `ip:port` identifier used by the
+ * connect/remove/priority row actions.
+ */
+function normalizeServer(row) {
+  const ip = row?.ip || row?.address || '';
+  const port = row?.port || 0;
+  return {
+    _value: ip ? `${ip}:${port}` : '',
+    EC_TAG_SERVER_NAME: row?.name || row?.description || ip || 'Unknown',
+    EC_TAG_SERVER_DESC: row?.description || '',
+    EC_TAG_SERVER_USERS: parseFiniteNumber(row?.users, 0),
+    EC_TAG_SERVER_USERS_MAX: parseFiniteNumber(row?.maxUsers, 0),
+    EC_TAG_SERVER_FILES: parseFiniteNumber(row?.files, 0),
+    EC_TAG_SERVER_PING: parseFiniteNumber(row?.ping, 0),
+    EC_TAG_SERVER_VERSION: row?.version || '',
+    connected: row?.connected === true,
+    current: row?.current === true,
+    raw: row
+  };
+}
+
 function normalizeSharedDirectoryRoot(row) {
   return {
     path: row?.path || '',
@@ -295,11 +384,14 @@ module.exports = {
   makeEd2kLink,
   normalizeCategory,
   normalizeLifecycle,
+  normalizeServer,
   normalizeSharedDirectoryRoot,
   normalizeSharedFile,
   normalizeTransfer,
   normalizeTransferPart,
   normalizeTransferSource,
   normalizeUpload,
+  normalizeUploadFile,
+  normalizeUploadPeer,
   parseFiniteNumber
 };

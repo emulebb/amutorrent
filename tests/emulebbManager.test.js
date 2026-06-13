@@ -1576,3 +1576,79 @@ test('eMuleBB delete retries with confirm=true when core rejects a partial remov
     assert.match(deletes[1].url, /\/files\?confirm=true$/);
   });
 });
+
+test('eMuleBB manager surfaces active uploads as item peers, synthesizing files outside the snapshot frame', async () => {
+  // A shared file and a download (partfile) are in the snapshot frame; the
+  // remaining uploads are for files outside the page window (the common case on
+  // a large library) and must be synthesized from the self-describing rows.
+  const DL_HASH = 'd'.repeat(32);
+  const SHARED_HASH = 'e'.repeat(32);
+  const OFF_HASH = 'f'.repeat(32);
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return {
+        body: {
+          transfers: [{ hash: DL_HASH.toUpperCase(), name: 'partfile.bin', sizeBytes: 1000, completedBytes: 250, progress: 0.25, state: 'downloading' }],
+          sharedFiles: [{ hash: SHARED_HASH.toUpperCase(), name: 'in-frame.bin', sizeBytes: 2000 }],
+          uploads: [
+            // Matches the in-frame shared file → attaches as a peer (note uppercase hash).
+            { clientId: 'c1', userName: 'alice', userHash: 'AA00', clientSoftware: 'eMule', uploadState: 'uploading', uploadSpeedKiBps: 100, address: '203.0.113.1', port: 4662, requestedFileHash: SHARED_HASH.toUpperCase(), requestedFileName: 'in-frame.bin', requestedFileSizeBytes: 2000, requestedPartsObtained: 1, requestedPartsTotal: 1 },
+            // Matches the in-frame download (partfile) → attaches without forcing completion.
+            { clientId: 'c2', userName: 'bob', userHash: 'BB00', clientSoftware: 'eMule', uploadState: 'uploading', uploadSpeedKiBps: 50, address: '203.0.113.2', port: 4662, requestedFileHash: DL_HASH.toUpperCase(), requestedFileName: 'partfile.bin', requestedFileSizeBytes: 1000 },
+            // Two peers for a file NOT in the frame → one synthesized item, summed speed.
+            { clientId: 'c3', userName: 'carol', userHash: 'CC00', clientSoftware: 'eMule', uploadState: 'uploading', uploadSpeedKiBps: 200, address: '203.0.113.3', port: 4662, requestedFileHash: OFF_HASH, requestedFileName: 'off-frame.bin', requestedFileSizeBytes: 5000 },
+            { clientId: 'c4', userName: 'dave', userHash: 'DD00', clientSoftware: 'eMule', uploadState: 'uploading', uploadSpeedKiBps: 300, address: '203.0.113.4', port: 4662, requestedFileHash: OFF_HASH, requestedFileName: 'off-frame.bin', requestedFileSizeBytes: 5000 }
+          ]
+        }
+      };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+
+    const data = await manager.fetchData();
+    const unified = assembleUnifiedItems(data.downloads, data.sharedFiles, null);
+    const byHash = new Map(unified.map(item => [item.hash, item]));
+
+    // Synthesized off-frame file: single item, two peers, summed speed (200+300 KiB/s).
+    const off = byHash.get(OFF_HASH);
+    assert.ok(off, 'expected a synthesized item for the off-frame uploaded file');
+    assert.equal(off.shared, true);
+    assert.equal(off.peers.filter(p => p.role === 'upload').length, 2);
+    assert.equal(off.uploadSpeed, (200 + 300) * 1024);
+    assert.equal(off.name, 'off-frame.bin');
+
+    // In-frame shared file gets the upload peer + speed, no duplicate item.
+    const shared = byHash.get(SHARED_HASH);
+    assert.equal(shared.peers.filter(p => p.role === 'upload' && p.userName === 'alice').length, 1);
+    assert.equal(shared.uploadSpeed, 100 * 1024);
+
+    // In-frame download (partfile) gets the peer but is NOT forced complete.
+    const dl = byHash.get(DL_HASH);
+    assert.equal(dl.peers.filter(p => p.role === 'upload' && p.userName === 'bob').length, 1);
+    assert.equal(dl.complete, false);
+    assert.equal(dl.downloading, true);
+  });
+});
+
+test('eMuleBB manager synthesizes no upload items when there are no active uploads', async () => {
+  await withMockEmulebb(({ method, url }) => {
+    if (method === 'GET' && url === '/api/v1/categories') {
+      return { body: { items: [{ id: 0, name: 'Default' }] } };
+    }
+    if (method === 'GET' && url === '/api/v1/snapshot?limit=100') {
+      return { body: { transfers: [], sharedFiles: [], uploads: [] } };
+    }
+    return { status: 404, body: { error: 'NOT_FOUND', message: 'missing' } };
+  }, async ({ port }) => {
+    const manager = createManager(port);
+    manager.client = { version: {} };
+    const data = await manager.fetchData();
+    assert.equal(data.sharedFiles.length, 0);
+    assert.equal(data.downloads.length, 0);
+  });
+});

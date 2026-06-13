@@ -40,6 +40,15 @@ const CategoriesView = () => {
   const { fetchCategories } = useDataFetch();
   const actions = useActions();
 
+  // Some backends (e.g. eMuleBB) manage category lifecycle in their own UI and
+  // expose categories here as read-only (capabilities.categoryWrite === false).
+  // Only offer create/edit/delete when a connected backend permits writes;
+  // default-allow when the flag is unset (aMule, qBittorrent, etc.).
+  const canWriteCategories = Object.values(instances || {}).some(
+    inst => inst.connected && inst.capabilities?.categoryWrite !== false
+  );
+  const canEditCategories = canManage && canWriteCategories;
+
   // State for Docker detection (fetched from API)
   const [isDocker, setIsDocker] = useState(false);
   const isDockerFetched = useRef(false);
@@ -295,7 +304,7 @@ const CategoriesView = () => {
       sortable: false,
       width: 'auto',
       render: (item) => {
-        if (!canManage) return null;
+        if (!canEditCategories) return null;
         const isDefault = (item.name || item.title) === 'Default';
         return h('div', { className: 'flex gap-1' },
           // Edit button - shown for all categories including Default (for path mappings)
@@ -350,7 +359,7 @@ const CategoriesView = () => {
           )
         ),
         // Action buttons on the right (only for users with manage_categories)
-        canManage && h('div', { className: 'flex gap-1 flex-shrink-0' },
+        canEditCategories && h('div', { className: 'flex gap-1 flex-shrink-0' },
           // Edit button - shown for all categories including Default
           h(IconButton, {
             variant: 'primary',
@@ -425,7 +434,7 @@ const CategoriesView = () => {
         )
       )
     );
-  }, [handleEditCategory, handleDeleteCategory, hasMulti, formatPathMappings, clientDefaultPaths, instances, renderPathWarningIcon, canManage]);
+  }, [handleEditCategory, handleDeleteCategory, hasMulti, formatPathMappings, clientDefaultPaths, instances, renderPathWarningIcon, canEditCategories]);
 
   // ============================================================================
   // MOBILE HEADER CONTENT (shared between sticky toolbar and in-page header)
@@ -442,12 +451,12 @@ const CategoriesView = () => {
   [categories.length, columns, sortConfig, onSortChange]);
 
   const createButton = useMemo(() =>
-    canManage && h(Button, {
+    canEditCategories && h(Button, {
       variant: 'success',
       onClick: handleCreateCategory,
       icon: 'plus'
     }, 'New Category'),
-  [handleCreateCategory, canManage]);
+  [handleCreateCategory, canEditCategories]);
 
   const mobileHeaderContent = useMemo(() =>
     h('div', { className: 'flex items-center gap-2' },

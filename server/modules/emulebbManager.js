@@ -23,12 +23,15 @@ const {
   makeEd2kLink,
   normalizeCategory,
   normalizeLifecycle,
+  normalizeServer,
   normalizeSharedDirectoryRoot,
   normalizeSharedFile,
   normalizeTransfer,
   normalizeTransferPart,
   normalizeTransferSource,
   normalizeUpload,
+  normalizeUploadFile,
+  normalizeUploadPeer,
   parseFiniteNumber
 } = require('../lib/emulebb/normalizer');
 
@@ -421,10 +424,61 @@ class EmulebbManager extends BaseClientManager {
         }
       }
     }));
+    // Surface active uploads. aMuTorrent has no standalone uploads collection —
+    // the uploads view is driven by upload peers embedded on each file's item
+    // (see amuleManager). eMuleBB shares tens of thousands of files but the
+    // snapshot only carries a bounded page of them, so an uploaded file is
+    // almost never in this frame. Active uploads are bounded by upload slots and
+    // each row is self-describing, so attach upload peers to the matching frame
+    // item when present and otherwise synthesize a file item from the upload's
+    // own fields. Bounded by slots, not by total shared-file count.
+    const uploadRows = unwrapItems(snapshot.uploads);
+    const frameByHash = new Map();
+    for (const download of downloads) {
+      if (download.hash) frameByHash.set(String(download.hash).toLowerCase(), download);
+    }
+    // Shared files win over downloads on a hash collision (a partfile shared
+    // while downloading): both merge into one unified item, so attaching to a
+    // single frame entry avoids duplicating the upload peers on that item.
+    for (const sharedFile of sharedFiles) {
+      if (sharedFile.hash) frameByHash.set(String(sharedFile.hash).toLowerCase(), sharedFile);
+    }
+    const uploadGroups = new Map();
+    for (const row of uploadRows) {
+      const hash = String(row.requestedFileHash || '').toLowerCase();
+      if (!hash) continue;
+      const peer = normalizeUploadPeer(row);
+      let group = uploadGroups.get(hash);
+      if (!group) {
+        group = {
+          hash,
+          name: row.requestedFileName || 'Unknown',
+          size: row.requestedFileSizeBytes ?? row.requestedFileSize ?? 0,
+          peers: [],
+          uploadSpeed: 0
+        };
+        uploadGroups.set(hash, group);
+      }
+      group.peers.push(peer);
+      group.uploadSpeed += peer.uploadRate || 0;
+    }
+    for (const group of uploadGroups.values()) {
+      const item = frameByHash.get(group.hash);
+      if (item) {
+        // File is already in the frame (small library, or a partfile also being
+        // shared). Attach peers without altering completion state.
+        if (!Array.isArray(item.peers)) item.peers = [];
+        item.peers.push(...group.peers);
+        item.uploadSpeed = (item.uploadSpeed || 0) + group.uploadSpeed;
+      } else {
+        sharedFiles.push(normalizeUploadFile(group, this.instanceId));
+      }
+    }
+
     return {
       downloads,
       sharedFiles,
-      uploads: unwrapItems(snapshot.uploads).map(item => normalizeUpload(item, this.instanceId)),
+      uploads: uploadRows.map(item => normalizeUpload(item, this.instanceId)),
       nativeStatus: {
         lifecycle,
         sharedFilesReady,
@@ -515,6 +569,35 @@ class EmulebbManager extends BaseClientManager {
       downloadSpeed: kibPerSecondToBytesPerSecond(stats.downloadSpeedKiBps ?? stats.downloadSpeed),
       uploadTotal: stats.sessionUploadedBytes ?? stats.sessionUploaded ?? 0,
       downloadTotal: stats.sessionDownloadedBytes ?? stats.sessionDownloaded ?? 0
+    };
+  }
+
+  /**
+   * Extract per-item history metadata for the download-history tracker.
+   *
+   * autoRefreshManager calls this on every connected manager (each ED2K/torrent
+   * adapter implements it); eMuleBB previously lacked it, which threw on every
+   * refresh cycle. Mirrors the aMule contract using eMuleBB's normalized fields:
+   * shared files report `downloaded = size`, and upload totals come from the
+   * shared-file transfer counters.
+   */
+  extractHistoryMetadata(item) {
+    const size = item.size || 0;
+    const uploaded = item.transferredTotal ?? item.transferred ?? item.uploadTotal ?? 0;
+    const downloaded = item.downloaded != null ? item.downloaded : size;
+    const ratio = downloaded > 0 ? uploaded / downloaded : 0;
+    return {
+      hash: item.hash ? String(item.hash).toLowerCase() : undefined,
+      instanceId: item.instanceId,
+      size,
+      name: item.name,
+      downloaded,
+      uploaded,
+      ratio,
+      trackerDomain: null,
+      directory: item.path || item.directory || null,
+      multiFile: false,
+      category: null // filled from unified items categoryByKey lookup
     };
   }
 
@@ -998,7 +1081,11 @@ class EmulebbManager extends BaseClientManager {
   }
 
   async getServerList() {
-    return unwrapItems(await this._request('GET', '/api/v1/servers'));
+    // Match the aMule EC contract the servers view consumes: an object keyed by
+    // EC_TAG_SERVER holding the list, not a bare array (WebSocketContext reads
+    // `data.data.EC_TAG_SERVER`). Each row is mapped onto the EC field shape.
+    const servers = unwrapItems(await this._request('GET', '/api/v1/servers')).map(normalizeServer);
+    return { EC_TAG_SERVER: servers };
   }
 
   async connectServer(ip, port) {
