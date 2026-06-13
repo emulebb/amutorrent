@@ -57,6 +57,10 @@ const SAFE_GET_RETRY_BASE_DELAY_MS = 100;
 // not flood the download-history DB.
 const EMULEBB_SHARED_REFRESH_MS = 30000;
 const EMULEBB_SHARED_MAX_ITEMS = Math.max(1, Number(process.env.EMULEBB_SHARED_MAX_ITEMS) || 2000);
+// Transfers are paged too: a very large completed-transfer history would
+// otherwise serialize in full every poll. Bound it like the shared list; raise
+// EMULEBB_TRANSFERS_MAX_ITEMS to surface more.
+const EMULEBB_TRANSFERS_MAX_ITEMS = Math.max(1, Number(process.env.EMULEBB_TRANSFERS_MAX_ITEMS) || 5000);
 const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
   'ECONNRESET',
   'ECONNABORTED',
@@ -194,6 +198,8 @@ class EmulebbManager extends BaseClientManager {
     // capped at EMULEBB_SHARED_MAX_ITEMS, so these diverge on very large libraries.
     this.sharedFilesTotal = 0;
     this.sharedFilesTruncated = false;
+    this.transfersTotal = 0;
+    this.transfersTruncated = false;
     this._sharedFilesFetchedAt = 0;
     this.lastSearchId = null;
     this.lastSearchResults = [];
@@ -470,7 +476,13 @@ class EmulebbManager extends BaseClientManager {
     // the paged read fails so a transient error doesn't blank the list.
     let transferRows;
     try {
-      transferRows = (await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000 })).rows;
+      const { rows, total, truncated } = await this._fetchAllPages('/api/v1/transfers', { pageLimit: 1000, maxItems: EMULEBB_TRANSFERS_MAX_ITEMS });
+      transferRows = rows;
+      this.transfersTotal = total;
+      this.transfersTruncated = truncated;
+      if (truncated) {
+        this.warn(`eMuleBB has ${total} transfers; surfacing the first ${rows.length} (raise EMULEBB_TRANSFERS_MAX_ITEMS to show more).`);
+      }
     } catch (err) {
       this.warn(`Failed to page eMuleBB transfers, using snapshot page: ${logger.errorDetail(err)}`);
       transferRows = unwrapItems(snapshot.transfers);
