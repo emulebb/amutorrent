@@ -58,6 +58,10 @@ const RETRYABLE_TRANSPORT_ERROR_FRAGMENTS = [
 ];
 
 function isRetryableTransportError(err) {
+  // eMuleBB serves one web worker and sheds load with HTTP 503 (SERVICE_BUSY)
+  // when the UI thread or REST worker is saturated; safe GET reads should ride
+  // that out rather than dropping the frame.
+  if (err && (err.statusCode === 503 || err.code === 'SERVICE_BUSY')) return true;
   const message = String(err?.message || err || '');
   return RETRYABLE_TRANSPORT_ERROR_FRAGMENTS.some(fragment => message.includes(fragment));
 }
@@ -269,18 +273,38 @@ class EmulebbManager extends BaseClientManager {
         res.on('end', () => {
           const text = Buffer.concat(chunks).toString('utf8');
           let payload = null;
-          try {
-            payload = text ? JSON.parse(text) : null;
-          } catch (err) {
-            return reject(new Error(`Invalid JSON from eMuleBB: ${err.message}`));
+          let parseError = null;
+          if (text) {
+            try {
+              payload = JSON.parse(text);
+            } catch (err) {
+              parseError = err;
+            }
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
-            const { code, message } = normalizeErrorPayload(payload, res.statusCode, text);
+            // WHY: eMuleBB returns plain-text backpressure bodies on overload
+            // (HTTP 503 "eMuleBB web API is busy") that are not JSON. Parsing
+            // first surfaced these as a misleading "Invalid JSON" error and
+            // skipped the retry path. Build the error from the JSON payload when
+            // it parsed, otherwise from the status + raw text, and tag 503 as a
+            // retryable SERVICE_BUSY so GET polling rides out transient busy
+            // windows instead of dropping the frame.
+            let code;
+            let message;
+            if (payload != null && parseError === null) {
+              ({ code, message } = normalizeErrorPayload(payload, res.statusCode, text));
+            } else {
+              code = res.statusCode === 503 ? 'SERVICE_BUSY' : `HTTP_${res.statusCode}`;
+              message = (text || '').trim() || `eMuleBB returned HTTP ${res.statusCode}`;
+            }
             const err = new Error(`eMuleBB ${code}: ${message}`);
             err.code = code;
             err.statusCode = res.statusCode;
             if (code === 'EMULE_UNAVAILABLE') this._markLifecycleUnavailable();
             return reject(err);
+          }
+          if (parseError !== null) {
+            return reject(new Error(`Invalid JSON from eMuleBB: ${parseError.message}`));
           }
           if (payload == null) {
             return reject(new Error('eMuleBB returned an empty JSON response'));
