@@ -76,8 +76,11 @@ mirrors the eMuleBB `/api/v2` compatibility pattern aMuTorrent already consumes.
 
 ## Policy
 
-- GPL fork under the emulebb org (amutorrent precedent); follow the version-paired
-  `…-emulebb-v0.7.x` tagging where applicable.
+- GPL fork under the emulebb org. The historical `…-emulebb-v0.7.x` tag pairing
+  tracks the MFC release line; since `0.7.3` may be the last MFC release and the
+  forward core is **emulebb-rust**, the post-0.7.3 pairing target is open — pair
+  to the rust core's `/api/v1` version range rather than the frozen MFC tag.
+  (Decide at promotion.)
 - Operator VPN credentials and live search terms stay in ignored local files or
   runtime env — never in tracked docs or templates.
 - No private data, no real media titles — synthetic placeholders only.
