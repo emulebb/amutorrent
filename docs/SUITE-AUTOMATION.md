@@ -3,7 +3,8 @@
 > **FROZEN (decision 2026-06-15).** aMuTorrent closes out on the `0.7.3` line and
 > enters **sustainability maintenance** (bug fixes only — no evolutive
 > development). It ships with the final eMuleBB MFC `0.7.3` package (alongside
-> qBittorrentBB and emulebb-rust) via the PowerShell bootstrap. The forward
+> qBittorrentBB; emulebb-rust is NOT in this bootstrap) via the PowerShell
+> bootstrap. The forward
 > cross-network controller is a **new Python coordinator** (Python-only, integrated
 > web UI, no Node) scoped to **emulebb-rust + qBittorrentBB only**. The automation
 > direction described below is retained as design reference for that successor, not
