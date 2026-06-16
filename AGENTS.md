@@ -9,6 +9,17 @@
 Everything below is this repo's local guidance for the eMuleBB-maintained
 aMuTorrent fork.
 
+## Status: FROZEN / deprecated
+
+This fork is **frozen** as the controller bundled with the eMuleBB `0.7.3`
+release: sustainability mode only (bug/security/packaging fixes). **Do not add
+new features.** The forward eMuleBB Suite controller is **TrackMuleBB**
+(`emulebb/trackmulebb`), which drives any `/api/v1` core by advertised
+capability and supersedes aMuTorrent. The `AMUT-FEAT-*` backlog is retained as
+design reference for TrackMuleBB. Authoritative:
+`emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md` and
+`API-V1-COMPATIBILITY.md`.
+
 ## eMuleBB Integration Guidance
 
 - Treat eMuleBB as its own client infrastructure, not as an aMule variant.

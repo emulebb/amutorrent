@@ -8,10 +8,15 @@ in the BB suite. It follows the eMuleBB backlog convention
 ## Current Snapshot
 
 **Source of truth:** `EMULEBB_WORKSPACE_ROOT\repos\amutorrent` (`main` branch)
+**Status:** **FROZEN / deprecated** — aMuTorrent is the controller bundled with
+the frozen eMuleBB `0.7.3` release (sustainability: bug/security/packaging only).
+The forward cross-network controller is **TrackMuleBB** (`emulebb/trackmulebb`),
+which supersedes it. See `emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md`.
 **Phase:** Phase 2 of `emulebb-tooling/docs/active/SUITE-JOINT-ROADMAP.md`
-(the optional cross-network controller layer).
-**Role:** aMuTorrent is the suite's optional cross-network controller; clients +
-Prowlarr stay fully standalone. Design:
+(legacy controller layer).
+**Role:** the optional cross-network controller in the `0.7.3` bundle; clients +
+Prowlarr stay fully standalone. The `AMUT-FEAT-*` items below are retained as
+**design reference for TrackMuleBB**, not active aMuTorrent scope. Design:
 [`docs/SUITE-AUTOMATION.md`](../SUITE-AUTOMATION.md).
 **Tracking:** issues live in `emulebb/amutorrent` and aggregate on the org
 **eMuleBB Suite** board (`https://github.com/orgs/emulebb/projects/3`,

@@ -6,12 +6,22 @@
 
 A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, and Transmission. Manage ED2K and BitTorrent downloads from a single modern web interface. Features multi-instance support, user management with SSO, Prowlarr integration for torrent search, Torznab indexer and qBittorrent-compatible API for ED2K clients (Sonarr/Radarr integration), push notifications via Apprise, and GeoIP peer location display. Built with Node.js, WebSockets, and React.
 
+> **Status in the eMuleBB Suite: FROZEN / legacy-only.** This eMuleBB fork of
+> aMuTorrent is the controller bundled with the frozen eMuleBB `0.7.3` release
+> and is in sustainability mode (bug/security/packaging fixes only — no new
+> features). The **forward** eMuleBB Suite controller is **TrackMuleBB**
+> (`emulebb/trackmulebb`), which drives any `/api/v1` core by advertised
+> capability. See `emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md` and
+> `BRAND-AND-NAMING.md`. The `AMUT-FEAT-*` items here are retained as design
+> reference for TrackMuleBB, not active aMuTorrent scope.
+
 ![aMuTorrent](./docs/screenshots/home-desktop.png)
 
-## eMuleBB RC1 Suite Setup
+## eMuleBB 0.7.3 Suite Setup (legacy)
 
-For eMuleBB RC1, the suite bootstrapper is the quickest way to install
-aMuTorrent with eMuleBB and the Arr integration workflow.
+For the frozen eMuleBB `0.7.3` bundle, the suite bootstrapper installs
+aMuTorrent with eMuleBB and the Arr integration workflow. New deployments should
+prefer the forward controller (TrackMuleBB).
 
 ```powershell
 irm https://github.com/emulebb/emulebb/releases/download/emulebb-v0.7.3-rc.1/Bootstrap-eMuleBBSuite.ps1 | iex
@@ -19,7 +29,7 @@ irm https://github.com/emulebb/emulebb/releases/download/emulebb-v0.7.3-rc.1/Boo
 
 The bootstrapper resolves the matching
 [`amutorrent-v3.8.5-emulebb-v0.7.3-rc.1`](https://github.com/emulebb/amutorrent/releases/tag/amutorrent-v3.8.5-emulebb-v0.7.3-rc.1)
-package and wires it into the eMuleBB suite. All eMuleBB RC1 builds and
+package and wires it into the eMuleBB suite. All eMuleBB `0.7.3` RC builds and
 packaging happen in GitHub Actions and are published through GitHub Releases
 with manifests, SHA-256 evidence, SPDX SBOMs, and diagnostics packages.
 
@@ -68,9 +78,9 @@ with manifests, SHA-256 evidence, SPDX SBOMs, and diagnostics packages.
 **Prerequisites:** At least one of: aMule with External Connections enabled, eMuleBB with REST enabled, rTorrent with XML-RPC enabled, qBittorrent with WebUI enabled, Deluge with WebUI enabled, or Transmission with RPC enabled.
 
 This repository is the eMuleBB organization fork. The Docker image below remains
-the upstream aMuTorrent distribution. For the eMuleBB RC1 controller package,
-use the suite bootstrapper above or download the published RC1 asset from this
-fork's GitHub Releases.
+the upstream aMuTorrent distribution. For the frozen eMuleBB `0.7.3` controller
+package, use the suite bootstrapper above or download the published `0.7.3` RC
+asset from this fork's GitHub Releases.
 
 ### 1. Pull the image
 
