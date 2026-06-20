@@ -6,14 +6,15 @@
 
 A unified download manager for aMule, eMuleBB, rTorrent, qBittorrent, Deluge, and Transmission. Manage ED2K and BitTorrent downloads from a single modern web interface. Features multi-instance support, user management with SSO, Prowlarr integration for torrent search, Torznab indexer and qBittorrent-compatible API for ED2K clients (Sonarr/Radarr integration), push notifications via Apprise, and GeoIP peer location display. Built with Node.js, WebSockets, and React.
 
-> **Status in the eMuleBB Suite: FROZEN / legacy-only.** This eMuleBB fork of
-> aMuTorrent is the controller bundled with the frozen eMuleBB `0.7.3` release
-> and is in sustainability mode (bug/security/packaging fixes only — no new
-> features). The **forward** eMuleBB Suite controller is **TrackMuleBB**
-> (`emulebb/trackmulebb`), which drives any `/api/v1` core by advertised
-> capability. See `emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md` and
-> `BRAND-AND-NAMING.md`. The `AMUT-FEAT-*` items here are retained as design
-> reference for TrackMuleBB, not active aMuTorrent scope.
+> **Status in the eMuleBB Suite: ACTIVE through `0.7.3` final, then frozen.**
+> This eMuleBB fork of aMuTorrent is the controller bundled with the eMuleBB
+> `0.7.3` release. Per operator decision 2026-06-20 it stays **actively
+> maintained and upstream-synced until `0.7.3` final**, then enters sustainability
+> mode (bug/security/packaging fixes only). After `0.7.3` final the **forward**
+> eMuleBB Suite controller is **TrackMuleBB** (`emulebb/trackmulebb`), which drives
+> any `/api/v1` core by advertised capability. See
+> `emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md` and `BRAND-AND-NAMING.md`. The
+> `AMUT-FEAT-*` items here are retained as design reference for TrackMuleBB.
 
 ![aMuTorrent](./docs/screenshots/home-desktop.png)
 

@@ -1,15 +1,18 @@
 # aMuTorrent — Suite automation & cross-network orchestration (notes 6, 16, 17)
 
-> **FROZEN (decision 2026-06-15).** aMuTorrent closes out on the `0.7.3` line and
-> enters **sustainability maintenance** (bug fixes only — no evolutive
-> development). It ships with the final eMuleBB MFC `0.7.3` package (alongside
-> qBittorrentBB; emulebb-rust is NOT in this bootstrap) via the PowerShell
-> bootstrap. The forward
-> cross-network controller is a **new Python coordinator** (Python-only, integrated
-> web UI, no Node) scoped to **emulebb-rust + qBittorrentBB only**. The automation
-> direction described below is retained as design reference for that successor, not
-> as aMuTorrent evolutive scope. See
-> `emulebb-tooling/docs/active/SUITE-JOINT-ROADMAP.md` (Decision 2026-06-15).
+> **ACTIVE through `0.7.3` final, then FROZEN (decision 2026-06-20, refining
+> 2026-06-15).** aMuTorrent is the controller bundled with the eMuleBB `0.7.3`
+> release and stays **unfrozen and actively maintained — kept up to date with
+> upstream plus eMuleBB controller fixes/small improvements — until `0.7.3`
+> final ships**; it then enters **sustainability maintenance** (bug fixes only —
+> no evolutive development). It ships with the final eMuleBB MFC `0.7.3` package
+> (with the Arr plumbing; qBittorrentBB and emulebb-rust are NOT in this
+> bootstrap) via the PowerShell bootstrap. After `0.7.3` final the forward
+> cross-network controller is the **TrackMuleBB** Python coordinator (Python-only,
+> integrated web UI, no Node) scoped to **emulebb-rust + qBittorrentBB**. The
+> automation direction described below is retained as design reference for that
+> successor, not as aMuTorrent evolutive scope. See
+> `emulebb-tooling/docs/active/SUITE-JOINT-ROADMAP.md` (Decision 2026-06-20).
 
 Status: design / direction (reference for the successor controller). Captured
 2026-06-14. Suite context: `emulebb-tooling/docs/active/SUITE-JOINT-ROADMAP.md`.
@@ -88,10 +91,10 @@ mirrors the eMuleBB `/api/v2` compatibility pattern aMuTorrent already consumes.
 ## Policy
 
 - GPL fork under the emulebb org. The historical `…-emulebb-v0.7.x` tag pairing
-  tracks the MFC release line; since `0.7.3` may be the last MFC release and the
-  forward core is **emulebb-rust**, the post-0.7.3 pairing target is open — pair
-  to the rust core's `/api/v1` version range rather than the frozen MFC tag.
-  (Decide at promotion.)
+  tracks the MFC release line; since the MFC `0.7.x` feature line closes at `0.7.3`
+  (MFC continues in the `0.8.x` line) and the forward core is **emulebb-rust**, the
+  post-`0.7.3` pairing target is open — pair to the rust core's `/api/v1` version
+  range rather than an MFC tag. (Decide at promotion.)
 - Operator VPN credentials and live search terms stay in ignored local files or
   runtime env — never in tracked docs or templates.
 - No private data, no real media titles — synthetic placeholders only.
