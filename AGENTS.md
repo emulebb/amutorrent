@@ -9,17 +9,17 @@
 Everything below is this repo's local guidance for the eMuleBB-maintained
 aMuTorrent fork.
 
-## Status: ACTIVE through 0.7.3 final, then FROZEN / deprecated
+## Status: FROZEN / deprecated after 0.7.3 final
 
-This fork is the controller bundled with the eMuleBB `0.7.3` release. **Per
-operator decision 2026-06-20 it stays unfrozen and actively maintained — kept up
-to date with upstream `got3nks/amutorrent` plus eMuleBB controller fixes and
-small improvements — until eMuleBB `0.7.3` final ships.** It freezes into
-sustainability mode (bug/security/packaging fixes only) **at `0.7.3` final**, at
-which point the forward eMuleBB Suite controller is **TrackMuleBB**
-(`emulebb/trackmulebb`), which drives any `/api/v1` core by advertised capability
-and supersedes aMuTorrent. The `AMUT-FEAT-*` backlog is retained as design
-reference for TrackMuleBB. Authoritative:
+This fork is the controller bundled with the eMuleBB `0.7.3` release. Stable
+`0.7.3` final shipped on 2026-07-05, so this fork is now frozen into
+sustainability mode: bug, security, packaging, and release-maintenance fixes
+only. Do not add new controller product surface or routine upstream feature
+syncs without an explicit post-`0.7.3` operator decision. The forward eMuleBB
+Suite controller is **TrackMuleBB** (`emulebb/trackmulebb`), which drives any
+`/api/v1` core by advertised capability and supersedes aMuTorrent. The
+`AMUT-FEAT-*` backlog is retained as design reference for TrackMuleBB.
+Authoritative:
 `emulebb-tooling/docs/active/PRODUCT-PORTFOLIO.md`,
 `SUITE-JOINT-ROADMAP.md` (Decision 2026-06-20), and `API-V1-COMPATIBILITY.md`.
 
