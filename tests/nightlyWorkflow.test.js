@@ -12,10 +12,12 @@ function readWorkflow() {
   return fs.readFileSync(WORKFLOW_PATH, 'utf8');
 }
 
-test('nightly upstream workflow rebases only through the automation branch', () => {
+test('upstream workflow is manual-only and rebases through the automation branch', () => {
   const workflow = readWorkflow();
 
-  assert.match(workflow, /cron: '41 2 \* \* \*'/);
+  assert.match(workflow, /on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /^\s*schedule:/m);
+  assert.doesNotMatch(workflow, /cron:/);
   assert.match(workflow, /git remote add upstream https:\/\/github\.com\/got3nks\/amutorrent\.git/);
   assert.match(workflow, /git checkout -B automation\/upstream-nightly origin\/main/);
   assert.match(workflow, /git rebase upstream\/main/);
