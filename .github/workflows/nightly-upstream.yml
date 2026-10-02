@@ -4,10 +4,6 @@
 name: Nightly upstream sync
 
 on:
-  schedule:
-    # GitHub schedules run in UTC. Keep this away from the other eMuleBB
-    # nightly minute slots and the top-of-hour Actions queue spike.
-    - cron: '41 2 * * *'
   workflow_dispatch:
     inputs:
       force:
