@@ -3,7 +3,7 @@ id: AMUT-FEAT-001
 workflow: github
 github_issue: https://github.com/emulebb/amutorrent/issues/4
 title: Cross-network "download the torrent instead" intent handoff
-status: OPEN
+status: WONT_DO
 priority: Major
 category: feature
 labels: [controller, cross-network, suite, ed2k-bridge]
@@ -12,7 +12,9 @@ created: 2026-06-14
 source: suite forward program (note 6); SUITE-AUTOMATION
 ---
 
-> Workflow status is tracked in GitHub. This local document is retained as an engineering spec/evidence record.
+> Retired on 2026-10-02 when the aMuTorrent forward roadmap was closed. The
+> linked GitHub issue is closed as not planned; this file is historical design
+> evidence only.
 
 # AMUT-FEAT-001 - Cross-network "download the torrent instead" intent handoff
 

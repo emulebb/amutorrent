@@ -3,7 +3,7 @@ id: AMUT-FEAT-002
 workflow: github
 github_issue: https://github.com/emulebb/amutorrent/issues/5
 title: Suite automation: cross-network grab + reconcile/orphan actuation
-status: OPEN
+status: WONT_DO
 priority: Major
 category: feature
 labels: [controller, automation, suite, reconciliation]
@@ -12,7 +12,9 @@ created: 2026-06-14
 source: suite forward program (notes 16-17); SUITE-AUTOMATION
 ---
 
-> Workflow status is tracked in GitHub. This local document is retained as an engineering spec/evidence record.
+> Retired on 2026-10-02 when the aMuTorrent forward roadmap was closed. The
+> linked GitHub issue is closed as not planned; this file is historical design
+> evidence only.
 
 # AMUT-FEAT-002 - Suite automation: cross-network grab + reconcile/orphan actuation
 
